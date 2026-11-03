@@ -1,0 +1,250 @@
+#nullable disable
+using System.Globalization;
+using Microsoft.Playwright;
+using NUnit.Framework;
+using {{NAMESPACE}}.Infrastructure.Interfaces;
+using {{NAMESPACE}}.Shared.Configuration;
+using {{NAMESPACE}}.Shared.Extensions;
+using {{NAMESPACE}}.Shared.Helpers;
+
+namespace {{NAMESPACE}}.Infrastructure.Services
+{
+    /// <summary>
+    /// Default <see cref="IBrowserManager"/>. Reads browser preferences from
+    /// <see cref="TestConfig"/> (hydrated from appsettings.json by
+    /// <see cref="AppConfigurationExtensions.LoadTestConfig"/>) and exposes
+    /// helpers for screenshots + tracing.
+    ///
+    /// Browser engine selection rules (see <see cref="ResolveEngine"/>):
+    ///   • <c>UseChromium = true</c> always launches vanilla Chromium with
+    ///     no channel — the legacy default.
+    ///   • <c>UseChromium = false</c> routes by <see cref="TestConfig.DefaultBrowser"/>:
+    ///       - <c>"firefox"</c>  → Playwright Firefox
+    ///       - <c>"webkit"</c>   → Playwright WebKit
+    ///       - <c>"chromium"</c> → Playwright Chromium, no channel
+    ///       - any other value (e.g. <c>"chrome"</c>, <c>"msedge"</c>,
+    ///         <c>"msedge-beta"</c>) is treated as a Chromium channel name
+    ///         and passed through via <see cref="BrowserTypeLaunchOptions.Channel"/>.
+    /// </summary>
+    public class BrowserManager : IBrowserManager, IDisposable, IAsyncDisposable
+    {
+        // Lexicographically sortable, locale-independent, Windows-safe (no
+        // colons or spaces). Used for both screenshot and trace filenames
+        // so attachments interleave naturally when sorted by name.
+        private const string TimestampFormat = "yyyyMMdd_HHmmss";
+
+        private enum BrowserEngine { Chromium, Firefox, Webkit }
+
+        private IPlaywright _playwright;
+        private IBrowser _browser;
+        private IBrowserContext _context;
+        private IPage _page;
+
+        public IPage page => _page;
+        public IBrowser Browser => _browser;
+        public IBrowserContext Context => _context;
+        public IPlaywright playwright => _playwright;
+        public bool TracingStarted { get; private set; }
+
+        public BrowserManager()
+        {
+        }
+
+        public async Task LaunchBrowserAsync()
+        {
+            var launchOptions = InitBrowserType();
+            await InitPageAsync(launchOptions);
+        }
+
+        public BrowserTypeLaunchOptions InitBrowserType()
+        {
+            var options = new BrowserTypeLaunchOptions { Headless = TestConfig.Headless };
+
+            // Channel only applies to the Chromium engine and only when the
+            // user picked a real channel name (chrome / msedge / msedge-beta).
+            // Firefox, WebKit, and bare "chromium" must launch with no channel,
+            // otherwise Playwright throws.
+            if (ResolveEngine() == BrowserEngine.Chromium && !TestConfig.UseChromium)
+            {
+                var channel = TestConfig.DefaultBrowser?.Trim();
+                if (!string.IsNullOrEmpty(channel) &&
+                    !channel.Equals("chromium", StringComparison.OrdinalIgnoreCase))
+                {
+                    options.Channel = channel;
+                }
+            }
+
+            return options;
+        }
+
+        public async Task InitPageAsync(BrowserTypeLaunchOptions launchOptions)
+        {
+            // Tear down anything from a previous launch on this instance
+            // before creating new objects. The old code closed only the
+            // page and then overwrote _playwright, orphaning the previous
+            // driver process and browser for the rest of the run.
+            await DisposeBrowserObjectsAsync();
+
+            _playwright = await Playwright.CreateAsync();
+
+            var browserType = ResolveEngine() switch
+            {
+                BrowserEngine.Firefox => _playwright.Firefox,
+                BrowserEngine.Webkit => _playwright.Webkit,
+                _ => _playwright.Chromium,
+            };
+
+            _browser = await browserType.LaunchAsync(launchOptions);
+            _context = await _browser.NewContextAsync();
+            _context.SetDefaultTimeout(TestConfig.PlaywrightTimeout);
+            _page = await _context.NewPageAsync();
+        }
+
+        private static BrowserEngine ResolveEngine()
+        {
+            // Legacy switch wins: UseChromium=true always means vanilla
+            // Chromium with no channel.
+            if (TestConfig.UseChromium) return BrowserEngine.Chromium;
+
+            return TestConfig.DefaultBrowser?.Trim().ToLowerInvariant() switch
+            {
+                "firefox" => BrowserEngine.Firefox,
+                "webkit" => BrowserEngine.Webkit,
+                // "chromium" and chromium-channel names (chrome, msedge, ...)
+                // all launch via the Chromium engine; the channel string is
+                // forwarded to BrowserTypeLaunchOptions.Channel by InitBrowserType.
+                _ => BrowserEngine.Chromium,
+            };
+        }
+
+        public async Task TakeScreenshotAsync(IPage page, TestOutputLogger logger)
+        {
+            var dir = System.IO.Path.Combine(TestContext.CurrentContext.TestDirectory, "TestResults");
+            System.IO.Directory.CreateDirectory(dir);
+
+            var stamp = DateTime.Now.ToString(TimestampFormat, CultureInfo.InvariantCulture);
+            var path = System.IO.Path.Combine(dir,
+                $"{TestContext.CurrentContext.Test.MethodName}_{stamp}.png");
+
+            await page.ScreenshotAsync(new PageScreenshotOptions
+            {
+                Path = path,
+                FullPage = true,
+            });
+
+            logger.LogScreenShotData(path);
+            TestContext.AddTestAttachment(path);
+        }
+
+        public async Task StartTracingAsync()
+        {
+            if (TracingStarted) return;
+
+            await _context.Tracing.StartAsync(new TracingStartOptions
+            {
+                Title = $"{TestContext.CurrentContext.Test.ClassName}. {TestContext.CurrentContext.Test.Name}",
+                Screenshots = true,
+                Snapshots = true,
+                Sources = true,
+            });
+            TracingStarted = true;
+        }
+
+        public async Task StopTracingAsync(IPage page, bool uploadTracer, TestOutputLogger logger)
+        {
+            if (!TracingStarted) return;
+            if (page == null || page.Url == "about:blank") return;
+
+            var workDir = TestContext.CurrentContext.WorkDirectory;
+            var ps1 = System.IO.Path.Combine(workDir, "playwright.ps1");
+            var traceDir = System.IO.Path.Combine(workDir, "playwright-traces");
+            System.IO.Directory.CreateDirectory(traceDir);
+
+            var stamp = DateTime.Now.ToString(TimestampFormat, CultureInfo.InvariantCulture);
+            var tracerPath = System.IO.Path.Combine(traceDir,
+                $"{TestContext.CurrentContext.Test.Name}_{stamp}.zip");
+
+            try
+            {
+                await _context.Tracing.StopAsync(new TracingStopOptions { Path = tracerPath });
+                TestContext.AddTestAttachment(tracerPath);
+                logger.LogTracerData(tracerPath, ps1);
+
+                if (uploadTracer)
+                {
+                    try
+                    {
+                        var url = await PlaywrightTraceExtensions.UploadPlaywrightTraceAsync(tracerPath);
+                        if (url != null) Console.WriteLine($"View Playwright trace: {url}");
+                    }
+                    catch (Exception ex) { Console.WriteLine($"Trace upload failed: {ex.Message}"); }
+                }
+
+                TracingStarted = false;
+            }
+            catch (PlaywrightException ex) { Console.WriteLine($"Tracing could not be stopped: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Close and release everything this manager created, in the order
+        /// Playwright expects: page → context → browser → driver. Disposing
+        /// the browser alone leaves the driver process alive, and disposing
+        /// out of order logs spurious "target closed" noise.
+        ///
+        /// Every step is best-effort: a browser that already crashed must
+        /// not stop us releasing the driver process behind it, or the test
+        /// host leaks a node process per test.
+        /// </summary>
+        public async ValueTask DisposeAsync()
+        {
+            await DisposeBrowserObjectsAsync();
+            GC.SuppressFinalize(this);
+        }
+
+        private async Task DisposeBrowserObjectsAsync()
+        {
+            if (_page != null)
+            {
+                try { await _page.CloseAsync(); }
+                catch (Exception ex) { Console.WriteLine($"Error closing page: {ex.Message}"); }
+                _page = null;
+            }
+
+            if (_context != null)
+            {
+                try { await _context.DisposeAsync(); }
+                catch (Exception ex) { Console.WriteLine($"Error disposing browser context: {ex.Message}"); }
+                _context = null;
+            }
+
+            if (_browser != null)
+            {
+                try { await _browser.DisposeAsync(); }
+                catch (Exception ex) { Console.WriteLine($"Error disposing browser: {ex.Message}"); }
+                _browser = null;
+            }
+
+            if (_playwright != null)
+            {
+                try { _playwright.Dispose(); }
+                catch (Exception ex) { Console.WriteLine($"Error disposing Playwright: {ex.Message}"); }
+                _playwright = null;
+            }
+
+            TracingStarted = false;
+        }
+
+        /// <summary>
+        /// Synchronous fallback. Only the driver handle can be released
+        /// without awaiting, so prefer <see cref="DisposeAsync"/> — the DI
+        /// scope the fixture creates is an async scope precisely so that
+        /// path is the one taken.
+        /// </summary>
+        public void Dispose()
+        {
+            _playwright?.Dispose();
+            _playwright = null;
+            GC.SuppressFinalize(this);
+        }
+    }
+}

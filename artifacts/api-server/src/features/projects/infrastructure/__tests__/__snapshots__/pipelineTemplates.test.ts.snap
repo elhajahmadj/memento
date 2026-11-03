@@ -1,0 +1,1974 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`buildPipelineFile snapshot matrix > 'azure' / 'csharp' / 'cd' renders deterministically 1`] = `
+"# Azure Pipelines (build + deploy/test) for Playwright tests
+trigger:
+  branches:
+    include:
+      - main
+pr:
+  branches:
+    include:
+      - main
+
+stages:
+  - stage: Build
+    jobs:
+      - job: build
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: self
+
+      - task: UseDotNet@2
+        inputs:
+          packageType: sdk
+          version: "8.0.x"
+
+      - script: |
+          dotnet build -c Release
+          mkdir -p drop
+          rsync -a --exclude drop --exclude .git ./ drop/
+        displayName: Build drop
+
+          - task: PublishPipelineArtifact@1
+            displayName: Publish drop
+            inputs:
+              targetPath: $(System.DefaultWorkingDirectory)/drop
+              artifactName: drop
+
+  - stage: DeployAndTest
+    dependsOn: Build
+    jobs:
+      - job: test
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: none
+
+      - task: UseDotNet@2
+        inputs:
+          packageType: sdk
+          version: "8.0.x"
+
+          - task: DownloadPipelineArtifact@2
+            displayName: Download drop
+            inputs:
+              artifact: drop
+              path: $(System.DefaultWorkingDirectory)/drop
+
+          - script: |
+          dotnet restore
+            displayName: Install test dependencies
+            workingDirectory: $(System.DefaultWorkingDirectory)/drop
+
+          - script: |
+          dotnet test --logger trx --results-directory TestResults
+            displayName: Run Playwright tests
+            workingDirectory: $(System.DefaultWorkingDirectory)/drop
+
+          - task: PublishPipelineArtifact@1
+            displayName: Publish test reports
+            condition: always()
+            inputs:
+              targetPath: $(System.DefaultWorkingDirectory)/drop
+              artifactName: playwright-reports
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'azure' / 'csharp' / 'ci' renders deterministically 1`] = `
+"# Azure Pipelines for Playwright tests
+trigger:
+  branches:
+    include:
+      - main
+pr:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - checkout: self
+
+  - task: UseDotNet@2
+    inputs:
+      packageType: sdk
+      version: "8.0.x"
+
+  - script: |
+      dotnet restore
+    displayName: Install dependencies
+
+  - script: |
+      dotnet test --logger trx --results-directory TestResults
+    displayName: Run Playwright tests
+
+  - task: PublishPipelineArtifact@1
+    displayName: Publish test reports
+    condition: always()
+    inputs:
+      targetPath: $(System.DefaultWorkingDirectory)
+      artifactName: playwright-reports
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'azure' / 'java' / 'cd' renders deterministically 1`] = `
+"# Azure Pipelines (build + deploy/test) for Playwright tests
+trigger:
+  branches:
+    include:
+      - main
+pr:
+  branches:
+    include:
+      - main
+
+stages:
+  - stage: Build
+    jobs:
+      - job: build
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: self
+
+      - task: JavaToolInstaller@0
+        inputs:
+          versionSpec: "21"
+          jdkArchitectureOption: x64
+          jdkSourceOption: PreInstalled
+
+      - task: Cache@2
+        displayName: Cache Maven repository
+        inputs:
+          key: 'maven | "$(Agent.OS)" | **/pom.xml'
+          restoreKeys: |
+            maven | "$(Agent.OS)"
+            maven
+          path: $(HOME)/.m2/repository
+
+      - script: |
+          mvn -B -DskipTests package
+          mkdir -p drop
+          rsync -a --exclude drop --exclude .git ./ drop/
+        displayName: Build drop
+
+          - task: PublishPipelineArtifact@1
+            displayName: Publish drop
+            inputs:
+              targetPath: $(System.DefaultWorkingDirectory)/drop
+              artifactName: drop
+
+  - stage: DeployAndTest
+    dependsOn: Build
+    jobs:
+      - job: test
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: none
+
+      - task: JavaToolInstaller@0
+        inputs:
+          versionSpec: "21"
+          jdkArchitectureOption: x64
+          jdkSourceOption: PreInstalled
+
+      - task: Cache@2
+        displayName: Cache Maven repository
+        inputs:
+          key: 'maven | "$(Agent.OS)" | **/pom.xml'
+          restoreKeys: |
+            maven | "$(Agent.OS)"
+            maven
+          path: $(HOME)/.m2/repository
+
+          - task: DownloadPipelineArtifact@2
+            displayName: Download drop
+            inputs:
+              artifact: drop
+              path: $(System.DefaultWorkingDirectory)/drop
+
+          - script: |
+          : # no install step
+            displayName: Install test dependencies
+            workingDirectory: $(System.DefaultWorkingDirectory)/drop
+
+          - script: |
+          mvn -B test
+            displayName: Run Playwright tests
+            workingDirectory: $(System.DefaultWorkingDirectory)/drop
+
+          - task: PublishPipelineArtifact@1
+            displayName: Publish test reports
+            condition: always()
+            inputs:
+              targetPath: $(System.DefaultWorkingDirectory)/drop
+              artifactName: playwright-reports
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'azure' / 'java' / 'ci' renders deterministically 1`] = `
+"# Azure Pipelines for Playwright tests
+trigger:
+  branches:
+    include:
+      - main
+pr:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - checkout: self
+
+  - task: JavaToolInstaller@0
+    inputs:
+      versionSpec: "21"
+      jdkArchitectureOption: x64
+      jdkSourceOption: PreInstalled
+
+  - task: Cache@2
+    displayName: Cache Maven repository
+    inputs:
+      key: 'maven | "$(Agent.OS)" | **/pom.xml'
+      restoreKeys: |
+        maven | "$(Agent.OS)"
+        maven
+      path: $(HOME)/.m2/repository
+
+  - script: |
+      : # no install step
+    displayName: Install dependencies
+
+  - script: |
+      mvn -B test
+    displayName: Run Playwright tests
+
+  - task: PublishPipelineArtifact@1
+    displayName: Publish test reports
+    condition: always()
+    inputs:
+      targetPath: $(System.DefaultWorkingDirectory)
+      artifactName: playwright-reports
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'azure' / 'nodejs' / 'cd' renders deterministically 1`] = `
+"# Azure Pipelines (build + deploy/test) for Playwright tests
+trigger:
+  branches:
+    include:
+      - main
+pr:
+  branches:
+    include:
+      - main
+
+stages:
+  - stage: Build
+    jobs:
+      - job: build
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: self
+
+      - task: NodeTool@0
+        inputs:
+          versionSpec: "20.x"
+
+      - script: |
+          mkdir -p drop
+          rsync -a --exclude drop --exclude .git --exclude node_modules ./ drop/
+        displayName: Build drop
+
+          - task: PublishPipelineArtifact@1
+            displayName: Publish drop
+            inputs:
+              targetPath: $(System.DefaultWorkingDirectory)/drop
+              artifactName: drop
+
+  - stage: DeployAndTest
+    dependsOn: Build
+    jobs:
+      - job: test
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: none
+
+      - task: NodeTool@0
+        inputs:
+          versionSpec: "20.x"
+
+          - task: DownloadPipelineArtifact@2
+            displayName: Download drop
+            inputs:
+              artifact: drop
+              path: $(System.DefaultWorkingDirectory)/drop
+
+          - script: |
+          npm ci
+          npx playwright install --with-deps
+            displayName: Install test dependencies
+            workingDirectory: $(System.DefaultWorkingDirectory)/drop
+
+          - script: |
+          npx playwright test
+            displayName: Run Playwright tests
+            workingDirectory: $(System.DefaultWorkingDirectory)/drop
+
+          - task: PublishPipelineArtifact@1
+            displayName: Publish test reports
+            condition: always()
+            inputs:
+              targetPath: $(System.DefaultWorkingDirectory)/drop
+              artifactName: playwright-reports
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'azure' / 'nodejs' / 'ci' renders deterministically 1`] = `
+"# Azure Pipelines for Playwright tests
+trigger:
+  branches:
+    include:
+      - main
+pr:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - checkout: self
+
+  - task: NodeTool@0
+    inputs:
+      versionSpec: "20.x"
+
+  - script: |
+      npm ci
+      npx playwright install --with-deps
+    displayName: Install dependencies
+
+  - script: |
+      npx playwright test
+    displayName: Run Playwright tests
+
+  - task: PublishPipelineArtifact@1
+    displayName: Publish test reports
+    condition: always()
+    inputs:
+      targetPath: $(System.DefaultWorkingDirectory)
+      artifactName: playwright-reports
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'azure' / 'python' / 'cd' renders deterministically 1`] = `
+"# Azure Pipelines (build + deploy/test) for Playwright tests
+trigger:
+  branches:
+    include:
+      - main
+pr:
+  branches:
+    include:
+      - main
+
+stages:
+  - stage: Build
+    jobs:
+      - job: build
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: self
+
+      - task: UsePythonVersion@0
+        inputs:
+          versionSpec: "3.12"
+
+      - script: |
+          mkdir -p drop
+          rsync -a --exclude drop --exclude .git --exclude __pycache__ --exclude .pytest_cache ./ drop/
+        displayName: Build drop
+
+          - task: PublishPipelineArtifact@1
+            displayName: Publish drop
+            inputs:
+              targetPath: $(System.DefaultWorkingDirectory)/drop
+              artifactName: drop
+
+  - stage: DeployAndTest
+    dependsOn: Build
+    jobs:
+      - job: test
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: none
+
+      - task: UsePythonVersion@0
+        inputs:
+          versionSpec: "3.12"
+
+          - task: DownloadPipelineArtifact@2
+            displayName: Download drop
+            inputs:
+              artifact: drop
+              path: $(System.DefaultWorkingDirectory)/drop
+
+          - script: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          playwright install --with-deps
+            displayName: Install test dependencies
+            workingDirectory: $(System.DefaultWorkingDirectory)/drop
+
+          - script: |
+          pytest
+            displayName: Run Playwright tests
+            workingDirectory: $(System.DefaultWorkingDirectory)/drop
+
+          - task: PublishPipelineArtifact@1
+            displayName: Publish test reports
+            condition: always()
+            inputs:
+              targetPath: $(System.DefaultWorkingDirectory)/drop
+              artifactName: playwright-reports
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'azure' / 'python' / 'ci' renders deterministically 1`] = `
+"# Azure Pipelines for Playwright tests
+trigger:
+  branches:
+    include:
+      - main
+pr:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - checkout: self
+
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: "3.12"
+
+  - script: |
+      python -m pip install --upgrade pip
+      pip install -r requirements.txt
+      playwright install --with-deps
+    displayName: Install dependencies
+
+  - script: |
+      pytest
+    displayName: Run Playwright tests
+
+  - task: PublishPipelineArtifact@1
+    displayName: Publish test reports
+    condition: always()
+    inputs:
+      targetPath: $(System.DefaultWorkingDirectory)
+      artifactName: playwright-reports
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'circleci' / 'csharp' / 'cd' renders deterministically 1`] = `
+"version: 2.1
+
+jobs:
+  build:
+    docker:
+      - image: mcr.microsoft.com/dotnet/sdk:8.0
+    steps:
+      - checkout
+      - run:
+          name: Install build dependencies
+          command: |
+            dotnet restore
+      - run:
+          name: Build drop
+          command: |
+            dotnet build -c Release
+            mkdir -p drop
+            rsync -a --exclude drop --exclude .git ./ drop/
+      - persist_to_workspace:
+          root: .
+          paths:
+            - drop
+
+  test:
+    docker:
+      - image: mcr.microsoft.com/dotnet/sdk:8.0
+    working_directory: ~/project/drop
+    steps:
+      - attach_workspace:
+          at: ~/project
+      - run:
+          name: Install test dependencies
+          command: |
+            dotnet restore
+      - run:
+          name: Run Playwright tests
+          command: |
+            dotnet test --logger trx --results-directory TestResults
+      - store_artifacts:
+          path: drop/TestResults
+          destination: TestResults
+      - store_artifacts:
+          path: drop/playwright-report
+          destination: playwright-report
+
+workflows:
+  build_and_test:
+    jobs:
+      - build
+      - test:
+          requires:
+            - build
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'circleci' / 'csharp' / 'ci' renders deterministically 1`] = `
+"version: 2.1
+
+jobs:
+  test:
+    docker:
+      - image: mcr.microsoft.com/dotnet/sdk:8.0
+    steps:
+      - checkout
+      - run:
+          name: Install dependencies
+          command: |
+            dotnet restore
+      - run:
+          name: Run Playwright tests
+          command: |
+            dotnet test --logger trx --results-directory TestResults
+      - store_artifacts:
+          path: TestResults
+          destination: TestResults
+      - store_artifacts:
+          path: playwright-report
+          destination: playwright-report
+
+workflows:
+  test:
+    jobs:
+      - test
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'circleci' / 'java' / 'cd' renders deterministically 1`] = `
+"version: 2.1
+
+jobs:
+  build:
+    docker:
+      - image: cimg/openjdk:21.0
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - maven-{{ checksum "pom.xml" }}
+            - maven-
+      - run:
+          name: Install build dependencies
+          command: |
+            : # no install step
+      - save_cache:
+          key: maven-{{ checksum "pom.xml" }}
+          paths:
+            - ~/.m2/repository
+      - run:
+          name: Build drop
+          command: |
+            mvn -B -DskipTests package
+            mkdir -p drop
+            rsync -a --exclude drop --exclude .git ./ drop/
+      - persist_to_workspace:
+          root: .
+          paths:
+            - drop
+
+  test:
+    docker:
+      - image: cimg/openjdk:21.0
+    working_directory: ~/project/drop
+    steps:
+      - attach_workspace:
+          at: ~/project
+      - restore_cache:
+          keys:
+            - maven-{{ checksum "pom.xml" }}
+            - maven-
+      - run:
+          name: Install test dependencies
+          command: |
+            : # no install step
+      - save_cache:
+          key: maven-{{ checksum "pom.xml" }}
+          paths:
+            - ~/.m2/repository
+      - run:
+          name: Run Playwright tests
+          command: |
+            mvn -B test
+      - store_artifacts:
+          path: drop/target/surefire-reports
+          destination: target/surefire-reports
+      - store_artifacts:
+          path: drop/playwright-report
+          destination: playwright-report
+
+workflows:
+  build_and_test:
+    jobs:
+      - build
+      - test:
+          requires:
+            - build
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'circleci' / 'java' / 'ci' renders deterministically 1`] = `
+"version: 2.1
+
+jobs:
+  test:
+    docker:
+      - image: cimg/openjdk:21.0
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - maven-{{ checksum "pom.xml" }}
+            - maven-
+      - run:
+          name: Install dependencies
+          command: |
+            : # no install step
+      - save_cache:
+          key: maven-{{ checksum "pom.xml" }}
+          paths:
+            - ~/.m2/repository
+      - run:
+          name: Run Playwright tests
+          command: |
+            mvn -B test
+      - store_artifacts:
+          path: target/surefire-reports
+          destination: target/surefire-reports
+      - store_artifacts:
+          path: playwright-report
+          destination: playwright-report
+
+workflows:
+  test:
+    jobs:
+      - test
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'circleci' / 'nodejs' / 'cd' renders deterministically 1`] = `
+"version: 2.1
+
+jobs:
+  build:
+    docker:
+      - image: mcr.microsoft.com/playwright:v1.47.0-jammy
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - node-{{ checksum "package-lock.json" }}
+            - node-
+      - run:
+          name: Install build dependencies
+          command: |
+            npm ci
+            npx playwright install --with-deps
+      - save_cache:
+          key: node-{{ checksum "package-lock.json" }}
+          paths:
+            - ~/.npm
+      - run:
+          name: Build drop
+          command: |
+            mkdir -p drop
+            rsync -a --exclude drop --exclude .git --exclude node_modules ./ drop/
+      - persist_to_workspace:
+          root: .
+          paths:
+            - drop
+
+  test:
+    docker:
+      - image: mcr.microsoft.com/playwright:v1.47.0-jammy
+    working_directory: ~/project/drop
+    steps:
+      - attach_workspace:
+          at: ~/project
+      - restore_cache:
+          keys:
+            - node-{{ checksum "package-lock.json" }}
+            - node-
+      - run:
+          name: Install test dependencies
+          command: |
+            npm ci
+            npx playwright install --with-deps
+      - save_cache:
+          key: node-{{ checksum "package-lock.json" }}
+          paths:
+            - ~/.npm
+      - run:
+          name: Run Playwright tests
+          command: |
+            npx playwright test
+      - store_artifacts:
+          path: drop/playwright-report
+          destination: playwright-report
+
+workflows:
+  build_and_test:
+    jobs:
+      - build
+      - test:
+          requires:
+            - build
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'circleci' / 'nodejs' / 'ci' renders deterministically 1`] = `
+"version: 2.1
+
+jobs:
+  test:
+    docker:
+      - image: mcr.microsoft.com/playwright:v1.47.0-jammy
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - node-{{ checksum "package-lock.json" }}
+            - node-
+      - run:
+          name: Install dependencies
+          command: |
+            npm ci
+            npx playwright install --with-deps
+      - save_cache:
+          key: node-{{ checksum "package-lock.json" }}
+          paths:
+            - ~/.npm
+      - run:
+          name: Run Playwright tests
+          command: |
+            npx playwright test
+      - store_artifacts:
+          path: playwright-report
+          destination: playwright-report
+
+workflows:
+  test:
+    jobs:
+      - test
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'circleci' / 'python' / 'cd' renders deterministically 1`] = `
+"version: 2.1
+
+jobs:
+  build:
+    docker:
+      - image: mcr.microsoft.com/playwright/python:v1.47.0-jammy
+    steps:
+      - checkout
+      - run:
+          name: Install build dependencies
+          command: |
+            python -m pip install --upgrade pip
+            pip install -r requirements.txt
+            playwright install --with-deps
+      - run:
+          name: Build drop
+          command: |
+            mkdir -p drop
+            rsync -a --exclude drop --exclude .git --exclude __pycache__ --exclude .pytest_cache ./ drop/
+      - persist_to_workspace:
+          root: .
+          paths:
+            - drop
+
+  test:
+    docker:
+      - image: mcr.microsoft.com/playwright/python:v1.47.0-jammy
+    working_directory: ~/project/drop
+    steps:
+      - attach_workspace:
+          at: ~/project
+      - run:
+          name: Install test dependencies
+          command: |
+            python -m pip install --upgrade pip
+            pip install -r requirements.txt
+            playwright install --with-deps
+      - run:
+          name: Run Playwright tests
+          command: |
+            pytest
+      - store_artifacts:
+          path: drop/playwright-report
+          destination: playwright-report
+
+workflows:
+  build_and_test:
+    jobs:
+      - build
+      - test:
+          requires:
+            - build
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'circleci' / 'python' / 'ci' renders deterministically 1`] = `
+"version: 2.1
+
+jobs:
+  test:
+    docker:
+      - image: mcr.microsoft.com/playwright/python:v1.47.0-jammy
+    steps:
+      - checkout
+      - run:
+          name: Install dependencies
+          command: |
+            python -m pip install --upgrade pip
+            pip install -r requirements.txt
+            playwright install --with-deps
+      - run:
+          name: Run Playwright tests
+          command: |
+            pytest
+      - store_artifacts:
+          path: playwright-report
+          destination: playwright-report
+
+workflows:
+  test:
+    jobs:
+      - test
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'github' / 'csharp' / 'cd' renders deterministically 1`] = `
+"name: Playwright Tests (CD)
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build and publish drop
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Build drop
+        run: |
+          dotnet build -c Release
+          mkdir -p drop
+          rsync -a --exclude drop --exclude .git ./ drop/
+
+      - name: Upload drop artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: drop
+          path: drop/
+          if-no-files-found: error
+
+  test:
+    name: Run Playwright tests against drop
+    needs: build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: drop
+    steps:
+      - name: Download drop artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: drop
+          path: drop/
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Install test dependencies
+        run: |
+          dotnet restore
+
+      - name: Run Playwright tests
+        run: |
+          dotnet test --logger trx --results-directory TestResults
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-reports
+          path: |
+            drop/TestResults/
+            drop/playwright-report/
+          if-no-files-found: ignore
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'github' / 'csharp' / 'ci' renders deterministically 1`] = `
+"name: Playwright Tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Run Playwright tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Install dependencies
+        run: |
+          dotnet restore
+
+      - name: Run Playwright tests
+        run: |
+          dotnet test --logger trx --results-directory TestResults
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-reports
+          path: |
+            TestResults/
+            playwright-report/
+          if-no-files-found: ignore
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'github' / 'java' / 'cd' renders deterministically 1`] = `
+"name: Playwright Tests (CD)
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build and publish drop
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Build drop
+        run: |
+          mvn -B -DskipTests package
+          mkdir -p drop
+          rsync -a --exclude drop --exclude .git ./ drop/
+
+      - name: Upload drop artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: drop
+          path: drop/
+          if-no-files-found: error
+
+  test:
+    name: Run Playwright tests against drop
+    needs: build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: drop
+    steps:
+      - name: Download drop artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: drop
+          path: drop/
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Install test dependencies
+        run: |
+          : # no install step
+
+      - name: Run Playwright tests
+        run: |
+          mvn -B test
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-reports
+          path: |
+            drop/target/surefire-reports/
+            drop/playwright-report/
+          if-no-files-found: ignore
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'github' / 'java' / 'ci' renders deterministically 1`] = `
+"name: Playwright Tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Run Playwright tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Install dependencies
+        run: |
+          : # no install step
+
+      - name: Run Playwright tests
+        run: |
+          mvn -B test
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-reports
+          path: |
+            target/surefire-reports/
+            playwright-report/
+          if-no-files-found: ignore
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'github' / 'nodejs' / 'cd' renders deterministically 1`] = `
+"name: Playwright Tests (CD)
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build and publish drop
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build drop
+        run: |
+          mkdir -p drop
+          rsync -a --exclude drop --exclude .git --exclude node_modules ./ drop/
+
+      - name: Upload drop artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: drop
+          path: drop/
+          if-no-files-found: error
+
+  test:
+    name: Run Playwright tests against drop
+    needs: build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: drop
+    steps:
+      - name: Download drop artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: drop
+          path: drop/
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install test dependencies
+        run: |
+          npm ci
+          npx playwright install --with-deps
+
+      - name: Run Playwright tests
+        run: |
+          npx playwright test
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-reports
+          path: |
+            drop/playwright-report/
+          if-no-files-found: ignore
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'github' / 'nodejs' / 'ci' renders deterministically 1`] = `
+"name: Playwright Tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Run Playwright tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npx playwright install --with-deps
+
+      - name: Run Playwright tests
+        run: |
+          npx playwright test
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-reports
+          path: |
+            playwright-report/
+          if-no-files-found: ignore
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'github' / 'python' / 'cd' renders deterministically 1`] = `
+"name: Playwright Tests (CD)
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build and publish drop
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build drop
+        run: |
+          mkdir -p drop
+          rsync -a --exclude drop --exclude .git --exclude __pycache__ --exclude .pytest_cache ./ drop/
+
+      - name: Upload drop artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: drop
+          path: drop/
+          if-no-files-found: error
+
+  test:
+    name: Run Playwright tests against drop
+    needs: build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: drop
+    steps:
+      - name: Download drop artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: drop
+          path: drop/
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          playwright install --with-deps
+
+      - name: Run Playwright tests
+        run: |
+          pytest
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-reports
+          path: |
+            drop/playwright-report/
+          if-no-files-found: ignore
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'github' / 'python' / 'ci' renders deterministically 1`] = `
+"name: Playwright Tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Run Playwright tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          playwright install --with-deps
+
+      - name: Run Playwright tests
+        run: |
+          pytest
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-reports
+          path: |
+            playwright-report/
+          if-no-files-found: ignore
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'gitlab' / 'csharp' / 'cd' renders deterministically 1`] = `
+"# GitLab CI/CD pipeline (build + deploy/test) for Playwright tests
+image: mcr.microsoft.com/dotnet/sdk:8.0
+
+stages:
+  - build
+  - test
+
+build:
+  stage: build
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  script:
+    - dotnet restore
+    - dotnet build -c Release
+    - mkdir -p drop
+    - rsync -a --exclude drop --exclude .git ./ drop/
+  artifacts:
+    name: drop
+    expire_in: 1 week
+    paths:
+      - drop/
+
+test:
+  stage: test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  dependencies:
+    - build
+  before_script:
+    - cd drop
+  script:
+    - dotnet restore
+    - dotnet test --logger trx --results-directory TestResults
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - drop/TestResults/
+      - drop/playwright-report/
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'gitlab' / 'csharp' / 'ci' renders deterministically 1`] = `
+"# GitLab CI/CD pipeline for Playwright tests
+image: mcr.microsoft.com/dotnet/sdk:8.0
+
+stages:
+  - test
+
+playwright:
+  stage: test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  script:
+    - dotnet restore
+    - dotnet test --logger trx --results-directory TestResults
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - TestResults/
+      - playwright-report/
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'gitlab' / 'java' / 'cd' renders deterministically 1`] = `
+"# GitLab CI/CD pipeline (build + deploy/test) for Playwright tests
+image: maven:3.9-eclipse-temurin-21
+
+cache:
+  key: \${CI_COMMIT_REF_SLUG}
+  paths:
+    - .m2/repository/
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
+
+stages:
+  - build
+  - test
+
+build:
+  stage: build
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  script:
+    - 'true' # no install step
+    - mvn -B -DskipTests package
+    - mkdir -p drop
+    - rsync -a --exclude drop --exclude .git ./ drop/
+  artifacts:
+    name: drop
+    expire_in: 1 week
+    paths:
+      - drop/
+
+test:
+  stage: test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  dependencies:
+    - build
+  before_script:
+    - cd drop
+  script:
+    - 'true' # no install step
+    - mvn -B test
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - drop/target/surefire-reports/
+      - drop/playwright-report/
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'gitlab' / 'java' / 'ci' renders deterministically 1`] = `
+"# GitLab CI/CD pipeline for Playwright tests
+image: maven:3.9-eclipse-temurin-21
+
+cache:
+  key: \${CI_COMMIT_REF_SLUG}
+  paths:
+    - .m2/repository/
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
+
+stages:
+  - test
+
+playwright:
+  stage: test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  script:
+    - 'true' # no install step
+    - mvn -B test
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - target/surefire-reports/
+      - playwright-report/
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'gitlab' / 'nodejs' / 'cd' renders deterministically 1`] = `
+"# GitLab CI/CD pipeline (build + deploy/test) for Playwright tests
+image: mcr.microsoft.com/playwright:v1.47.0-jammy
+
+cache:
+  key: \${CI_COMMIT_REF_SLUG}
+  paths:
+    - node_modules/
+
+stages:
+  - build
+  - test
+
+build:
+  stage: build
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  script:
+    - npm ci
+    - npx playwright install --with-deps
+    - mkdir -p drop
+    - rsync -a --exclude drop --exclude .git --exclude node_modules ./ drop/
+  artifacts:
+    name: drop
+    expire_in: 1 week
+    paths:
+      - drop/
+
+test:
+  stage: test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  dependencies:
+    - build
+  before_script:
+    - cd drop
+  script:
+    - npm ci
+    - npx playwright install --with-deps
+    - npx playwright test
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - drop/playwright-report/
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'gitlab' / 'nodejs' / 'ci' renders deterministically 1`] = `
+"# GitLab CI/CD pipeline for Playwright tests
+image: mcr.microsoft.com/playwright:v1.47.0-jammy
+
+cache:
+  key: \${CI_COMMIT_REF_SLUG}
+  paths:
+    - node_modules/
+
+stages:
+  - test
+
+playwright:
+  stage: test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  script:
+    - npm ci
+    - npx playwright install --with-deps
+    - npx playwright test
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - playwright-report/
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'gitlab' / 'python' / 'cd' renders deterministically 1`] = `
+"# GitLab CI/CD pipeline (build + deploy/test) for Playwright tests
+image: mcr.microsoft.com/playwright/python:v1.47.0-jammy
+
+stages:
+  - build
+  - test
+
+build:
+  stage: build
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  script:
+    - python -m pip install --upgrade pip
+    - pip install -r requirements.txt
+    - playwright install --with-deps
+    - mkdir -p drop
+    - rsync -a --exclude drop --exclude .git --exclude __pycache__ --exclude .pytest_cache ./ drop/
+  artifacts:
+    name: drop
+    expire_in: 1 week
+    paths:
+      - drop/
+
+test:
+  stage: test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  dependencies:
+    - build
+  before_script:
+    - cd drop
+  script:
+    - python -m pip install --upgrade pip
+    - pip install -r requirements.txt
+    - playwright install --with-deps
+    - pytest
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - drop/playwright-report/
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'gitlab' / 'python' / 'ci' renders deterministically 1`] = `
+"# GitLab CI/CD pipeline for Playwright tests
+image: mcr.microsoft.com/playwright/python:v1.47.0-jammy
+
+stages:
+  - test
+
+playwright:
+  stage: test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  script:
+    - python -m pip install --upgrade pip
+    - pip install -r requirements.txt
+    - playwright install --with-deps
+    - pytest
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - playwright-report/
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'jenkins' / 'csharp' / 'cd' renders deterministically 1`] = `
+"pipeline {
+  agent any
+
+  options {
+    timestamps()
+  }
+
+  // Configure your agent to provide the matching toolchain (.NET 8 SDK).
+  stages {
+    stage('Build') {
+      steps {
+        checkout scm
+          sh 'dotnet restore'
+        sh 'dotnet build -c Release'
+        sh 'mkdir -p drop'
+        sh 'rsync -a --exclude drop --exclude .git ./ drop/'
+        stash name: 'drop', includes: 'drop/**/*'
+      }
+    }
+
+    stage('Deploy and test') {
+      steps {
+        deleteDir()
+        unstash 'drop'
+        dir('drop') {
+            sh 'dotnet restore'
+            sh 'dotnet test --logger trx --results-directory TestResults'
+        }
+      }
+    }
+  }
+
+  post {
+    always {
+      archiveArtifacts artifacts: 'drop/TestResults/**/*', 'drop/playwright-report/**/*', allowEmptyArchive: true, fingerprint: true
+    }
+  }
+}
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'jenkins' / 'csharp' / 'ci' renders deterministically 1`] = `
+"pipeline {
+  agent any
+
+  options {
+    timestamps()
+  }
+
+  // Configure your agent to provide the matching toolchain (.NET 8 SDK).
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
+
+    stage('Install dependencies') {
+      steps {
+          sh 'dotnet restore'
+      }
+    }
+
+    stage('Run Playwright tests') {
+      steps {
+          sh 'dotnet test --logger trx --results-directory TestResults'
+      }
+    }
+  }
+
+  post {
+    always {
+      archiveArtifacts artifacts: 'TestResults/**/*', 'playwright-report/**/*', allowEmptyArchive: true, fingerprint: true
+    }
+  }
+}
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'jenkins' / 'java' / 'cd' renders deterministically 1`] = `
+"pipeline {
+  agent any
+
+  options {
+    timestamps()
+  }
+
+  // Configure your agent to provide the matching toolchain (JDK 21 + Maven).
+  stages {
+    stage('Build') {
+      steps {
+        checkout scm
+          // no install step
+        sh 'mvn -B -DskipTests package'
+        sh 'mkdir -p drop'
+        sh 'rsync -a --exclude drop --exclude .git ./ drop/'
+        stash name: 'drop', includes: 'drop/**/*'
+      }
+    }
+
+    stage('Deploy and test') {
+      steps {
+        deleteDir()
+        unstash 'drop'
+        dir('drop') {
+            // no install step
+            sh 'mvn -B test'
+        }
+      }
+    }
+  }
+
+  post {
+    always {
+      archiveArtifacts artifacts: 'drop/target/surefire-reports/**/*', 'drop/playwright-report/**/*', allowEmptyArchive: true, fingerprint: true
+    }
+  }
+}
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'jenkins' / 'java' / 'ci' renders deterministically 1`] = `
+"pipeline {
+  agent any
+
+  options {
+    timestamps()
+  }
+
+  // Configure your agent to provide the matching toolchain (JDK 21 + Maven).
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
+
+    stage('Install dependencies') {
+      steps {
+          // no install step
+      }
+    }
+
+    stage('Run Playwright tests') {
+      steps {
+          sh 'mvn -B test'
+      }
+    }
+  }
+
+  post {
+    always {
+      archiveArtifacts artifacts: 'target/surefire-reports/**/*', 'playwright-report/**/*', allowEmptyArchive: true, fingerprint: true
+    }
+  }
+}
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'jenkins' / 'nodejs' / 'cd' renders deterministically 1`] = `
+"pipeline {
+  agent any
+
+  options {
+    timestamps()
+  }
+
+  // Configure your agent to provide the matching toolchain (Node.js 20).
+  stages {
+    stage('Build') {
+      steps {
+        checkout scm
+          sh 'npm ci'
+          sh 'npx playwright install --with-deps'
+        sh 'mkdir -p drop'
+        sh 'rsync -a --exclude drop --exclude .git --exclude node_modules ./ drop/'
+        stash name: 'drop', includes: 'drop/**/*'
+      }
+    }
+
+    stage('Deploy and test') {
+      steps {
+        deleteDir()
+        unstash 'drop'
+        dir('drop') {
+            sh 'npm ci'
+            sh 'npx playwright install --with-deps'
+            sh 'npx playwright test'
+        }
+      }
+    }
+  }
+
+  post {
+    always {
+      archiveArtifacts artifacts: 'drop/playwright-report/**/*', allowEmptyArchive: true, fingerprint: true
+    }
+  }
+}
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'jenkins' / 'nodejs' / 'ci' renders deterministically 1`] = `
+"pipeline {
+  agent any
+
+  options {
+    timestamps()
+  }
+
+  // Configure your agent to provide the matching toolchain (Node.js 20).
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
+
+    stage('Install dependencies') {
+      steps {
+          sh 'npm ci'
+          sh 'npx playwright install --with-deps'
+      }
+    }
+
+    stage('Run Playwright tests') {
+      steps {
+          sh 'npx playwright test'
+      }
+    }
+  }
+
+  post {
+    always {
+      archiveArtifacts artifacts: 'playwright-report/**/*', allowEmptyArchive: true, fingerprint: true
+    }
+  }
+}
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'jenkins' / 'python' / 'cd' renders deterministically 1`] = `
+"pipeline {
+  agent any
+
+  options {
+    timestamps()
+  }
+
+  // Configure your agent to provide the matching toolchain (Python 3.12).
+  stages {
+    stage('Build') {
+      steps {
+        checkout scm
+          sh 'python -m pip install --upgrade pip'
+          sh 'pip install -r requirements.txt'
+          sh 'playwright install --with-deps'
+        sh 'mkdir -p drop'
+        sh 'rsync -a --exclude drop --exclude .git --exclude __pycache__ --exclude .pytest_cache ./ drop/'
+        stash name: 'drop', includes: 'drop/**/*'
+      }
+    }
+
+    stage('Deploy and test') {
+      steps {
+        deleteDir()
+        unstash 'drop'
+        dir('drop') {
+            sh 'python -m pip install --upgrade pip'
+            sh 'pip install -r requirements.txt'
+            sh 'playwright install --with-deps'
+            sh 'pytest'
+        }
+      }
+    }
+  }
+
+  post {
+    always {
+      archiveArtifacts artifacts: 'drop/playwright-report/**/*', allowEmptyArchive: true, fingerprint: true
+    }
+  }
+}
+"
+`;
+
+exports[`buildPipelineFile snapshot matrix > 'jenkins' / 'python' / 'ci' renders deterministically 1`] = `
+"pipeline {
+  agent any
+
+  options {
+    timestamps()
+  }
+
+  // Configure your agent to provide the matching toolchain (Python 3.12).
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
+
+    stage('Install dependencies') {
+      steps {
+          sh 'python -m pip install --upgrade pip'
+          sh 'pip install -r requirements.txt'
+          sh 'playwright install --with-deps'
+      }
+    }
+
+    stage('Run Playwright tests') {
+      steps {
+          sh 'pytest'
+      }
+    }
+  }
+
+  post {
+    always {
+      archiveArtifacts artifacts: 'playwright-report/**/*', allowEmptyArchive: true, fingerprint: true
+    }
+  }
+}
+"
+`;

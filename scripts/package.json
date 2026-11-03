@@ -1,0 +1,27 @@
+{
+  "name": "@workspace/scripts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "hello": "tsx ./src/hello.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "check-duplicate-test-classes": "node ./check-duplicate-test-classes.mjs",
+    "check-db-drift": "tsx ./src/check-db-drift.ts",
+    "check-size-budgets": "tsx ./src/check-size-budgets.ts",
+    "check-unscoped-user-writes": "node ./check-unscoped-user-writes.mjs",
+    "test:check-csharp-build-killers": "bash ./check-csharp-build-killers.test.sh",
+    "test:check-unscoped-user-writes": "bash ./check-unscoped-user-writes.test.sh"
+  },
+  "dependencies": {
+    "@types/pg": "^8.18.0",
+    "@workspace/db": "workspace:*",
+    "archiver": "^7.0.1",
+    "drizzle-orm": "catalog:",
+    "pg": "^8.20.0"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "tsx": "catalog:"
+  }
+}

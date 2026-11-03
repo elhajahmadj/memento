@@ -1,0 +1,59 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Playwright" Version="1.55.0" />
+    <PackageReference Include="Microsoft.Playwright.NUnit" Version="1.55.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="NUnit" Version="4.2.2" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
+    <!-- Pinned to 7.x: FluentAssertions 8.0+ ships under a commercial license. -->
+    <PackageReference Include="FluentAssertions" Version="7.2.0" />
+    <PackageReference Include="FluentAssertions.Analyzers" Version="0.34.1">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Deque.AxeCore.Playwright" Version="4.10.1" />
+    <!-- Pinned to 2.x: SixLabors.ImageSharp 3.0+ ships under a commercial license. -->
+    <PackageReference Include="SixLabors.ImageSharp" Version="2.1.9" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Memento.UxTests.Infrastructure\Memento.UxTests.Infrastructure.csproj" />
+    <ProjectReference Include="..\Memento.UxTests.Shared\Memento.UxTests.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="appsettings.local.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <!--
+    Pre-build guard: scan the test sources for several recurring C# mistakes
+    that the compiler reports with confusing locations:
+      - duplicate type declarations across files (CS0101)
+      - duplicate [Test]/[TestCase] method names in the same fixture (CS0111)
+      - classes accidentally marked both `abstract` and `sealed` (CS0418)
+    The script names each offending file and line so the regression is
+    obvious. Skipped when Node.js isn't on PATH so the project still builds
+    in stripped-down environments.
+  -->
+  <Target Name="CheckDuplicateTestClasses" BeforeTargets="BeforeBuild"
+          Condition="Exists('$(MSBuildThisFileDirectory)..\..\scripts\check-duplicate-test-classes.mjs')">
+    <Exec
+      Command="node &quot;$(MSBuildThisFileDirectory)..\..\scripts\check-duplicate-test-classes.mjs&quot;"
+      WorkingDirectory="$(MSBuildThisFileDirectory)..\.." />
+  </Target>
+
+</Project>

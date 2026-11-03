@@ -1,0 +1,21 @@
+namespace {{NAMESPACE}}.Shared.Configuration
+{
+    /// <summary>
+    /// Compile-time string keys shared by infrastructure and tests.
+    ///
+    /// Default values for run behavior (Headless, UseChromium,
+    /// PlaywrightTimeout, etc.) live on <see cref="TestConfig"/>, which is
+    /// hydrated from <c>appsettings.json</c> by
+    /// <see cref="AppConfigurationExtensions.LoadTestConfig"/>. Keep this
+    /// class limited to true compile-time identifiers (category names,
+    /// section keys) so we don't grow a second source of truth.
+    /// </summary>
+    public static class Constants
+    {
+        /// <summary>
+        /// NUnit category name. Tag a test with <c>[Category(Constants.STARTTRACER)]</c>
+        /// to force-enable Playwright tracing for just that test.
+        /// </summary>
+        public const string STARTTRACER = "StartTracer";
+    }
+}

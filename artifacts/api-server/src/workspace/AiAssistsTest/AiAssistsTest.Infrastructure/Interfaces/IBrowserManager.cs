@@ -1,0 +1,35 @@
+using Microsoft.Playwright;
+using AiAssistsTest.QA.Shared.Helpers;
+
+namespace AiAssistsTest.QA.Infrastructure.Interfaces
+{
+    /// <summary>
+    /// Owns the Playwright browser lifecycle. The fixture asks for a browser
+    /// instead of newing up Playwright itself so tests stay decoupled from
+    /// the concrete launch logic.
+    ///
+    /// The manager owns disposal of everything it creates (page, context,
+    /// browser, Playwright driver). It is resolved from a per-test DI scope,
+    /// so disposing that scope tears the whole chain down in the right
+    /// order — the fixture never disposes Playwright objects itself.
+    /// <see cref="IAsyncDisposable"/> is required for that: Playwright's
+    /// objects are async-disposable, and a synchronous Dispose cannot close
+    /// the browser cleanly.
+    /// </summary>
+    public interface IBrowserManager : IAsyncDisposable
+    {
+        IPage page { get; }
+        IBrowser Browser { get; }
+        IBrowserContext Context { get; }
+        IPlaywright playwright { get; }
+        bool TracingStarted { get; }
+
+        Task LaunchBrowserAsync();
+        BrowserTypeLaunchOptions InitBrowserType();
+        Task InitPageAsync(BrowserTypeLaunchOptions launchOptions);
+
+        Task StartTracingAsync();
+        Task StopTracingAsync(IPage page, bool uploadTracer, TestOutputLogger logger);
+        Task TakeScreenshotAsync(IPage page, TestOutputLogger logger);
+    }
+}

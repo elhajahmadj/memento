@@ -1,0 +1,232 @@
+using System.Diagnostics;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using NUnit.Framework;
+using {{NAMESPACE}}.Infrastructure.Services;
+using {{NAMESPACE}}.Infrastructure.Interfaces;
+using {{NAMESPACE}}.Shared.Configuration;
+using {{NAMESPACE}}.Shared.Helpers;
+
+namespace {{NAMESPACE}}.Infrastructure.Fixtures
+{
+    /// <summary>
+    /// Per-test fixture wired with DI, browser lifecycle, screenshots on
+    /// failure and Playwright tracing. Page-object based test suites should
+    /// inherit from this class.
+    ///
+    /// The DI container is built once per process via <see cref="Lazy{T}"/>
+    /// (see <see cref="BuildServiceProvider"/>) and released at process
+    /// exit, so per-test SetUp/TearDown only has to touch per-test state
+    /// (browser launch, screenshots, tracing) instead of rebuilding DI on
+    /// every test.
+    ///
+    /// Disposal is intentionally tied to <c>AppDomain.ProcessExit</c>
+    /// rather than any single fixture's <c>[OneTimeTearDown]</c>: the
+    /// container is shared across every fixture in the run, so the first
+    /// fixture to finish must NOT pull it out from under sibling
+    /// fixtures still executing in the same test host. ProcessExit is
+    /// the only safe point at which "every fixture is done with the
+    /// container" is guaranteed.
+    /// </summary>
+    public abstract class TestFixture : TestFixtureBase, IAsyncDisposable, IDisposable
+    {
+        // _testContextHelper is null until SetUpAsync runs; TearDownAsync
+        // must tolerate that case (e.g. a failure inside OneTimeSetUp).
+        protected TestContextHelper? _testContextHelper;
+
+        // Initialized at construction so it's always safe to use during
+        // any phase of the test lifecycle.
+        protected TestOutputLogger _logger = new TestOutputLogger();
+
+        // Built once per process. The first fixture to enter OneTimeSetUp
+        // triggers initialization; the ProcessExit handler registered in
+        // BuildServiceProvider releases the container when the test host
+        // shuts down so we never tear it down while another fixture is
+        // still running.
+        private static readonly Lazy<ServiceProvider> _lazyServiceProvider =
+            new Lazy<ServiceProvider>(BuildServiceProvider);
+
+        // INSTANCE state, deliberately not static. A static field here is
+        // shared by every fixture in the test host: with NUnit parallelism
+        // one fixture's SetUp overwrites another's manager, and the loser's
+        // TearDown then disposes the winner's live browser. Even run
+        // serially, a static keeps the last test's browser rooted for the
+        // rest of the process.
+        protected IBrowserManager? _browserManager;
+
+        // One DI scope per test. Disposing it is what releases the
+        // BrowserManager — and with it the page, context, browser, and
+        // driver process. See SetUpAsync for why this matters.
+        private AsyncServiceScope? _scope;
+
+        /// <summary>
+        /// Default constructor — <see cref="_browserManager"/> is resolved
+        /// from the shared service provider in <see cref="SetUpAsync"/>.
+        /// To substitute a custom <see cref="IBrowserManager"/>, fork this
+        /// file in your own fixture base and change the
+        /// <c>services.AddTransient&lt;IBrowserManager, BrowserManager&gt;()</c>
+        /// line in <see cref="BuildServiceProvider"/> to register your own
+        /// implementation. Do NOT add a parameterized constructor here:
+        /// NUnit instantiates fixtures via the parameterless ctor and any
+        /// value passed in would be overwritten by SetUpAsync anyway.
+        /// </summary>
+        protected TestFixture()
+        {
+        }
+
+        /// <summary>Override to run additional setup once the page is ready.</summary>
+        protected virtual Task OnTestFixtureSetupAsync() => Task.CompletedTask;
+
+        /// <summary>Override to run additional teardown before the page is disposed.</summary>
+        protected virtual Task OnTestFixtureTearDownAsync() => Task.CompletedTask;
+
+        [OneTimeSetUp]
+        public void GlobalSetup()
+        {
+            // Touch the lazy so the container is built up-front for the
+            // first fixture in the run; subsequent fixtures get the same
+            // process-wide provider for free.
+            _ = _lazyServiceProvider.Value;
+        }
+
+        [SetUp, Order(0)]
+        public async Task SetUpAsync()
+        {
+            // Resolve from a per-test ASYNC scope, never from the root
+            // provider. Microsoft.Extensions.DependencyInjection tracks
+            // every IDisposable/IAsyncDisposable it hands out and releases
+            // it only when the *resolving* container is disposed. Resolving
+            // straight from the root provider therefore retained one
+            // BrowserManager per test until ProcessExit — a leak that grew
+            // with the size of the suite and kept browser objects alive
+            // long after their test finished.
+            //
+            // The scope must be async: BrowserManager is IAsyncDisposable,
+            // and a synchronous scope dispose cannot close the browser.
+            var scope = _lazyServiceProvider.Value.CreateAsyncScope();
+            _scope = scope;
+            _browserManager = scope.ServiceProvider.GetRequiredService<IBrowserManager>();
+
+            _testContextHelper = new TestContextHelper(TestContext.CurrentContext);
+            _testContextHelper.RunTestByName(TestConfig.TestName);
+
+            await _browserManager.LaunchBrowserAsync();
+            ResolveBrowserObjects();
+
+            // StartTracer comes from appsettings.json via TestConfig (loaded
+            // once in TestFixtureBase). RunTracer is the per-run override set
+            // by callers, and the STARTTRACER category lets individual tests
+            // opt in via [Category].
+            if (TestCategory == Constants.STARTTRACER || TestConfig.RunTracer || TestConfig.StartTracer)
+            {
+                await _browserManager.StartTracingAsync();
+            }
+
+            await OnTestFixtureSetupAsync();
+        }
+
+        [TearDown, Order(0)]
+        public async Task TearDownAsync()
+        {
+            bool uploadTracer = !Configuration.IsLocalEnv();
+
+            await OnTestFixtureTearDownAsync();
+
+            // _testContextHelper / _browserManager are null only when
+            // SetUpAsync threw before assigning them; in that case there
+            // is nothing per-test to clean up here beyond DisposeAsync().
+            if (_testContextHelper != null
+                && _browserManager != null
+                && _testContextHelper.HasTestFailed()
+                && page != null)
+            {
+                _logger.LogTestFailedData(_testContextHelper);
+                Console.WriteLine($"Test failed at URL: {page.Url}");
+                await _browserManager.TakeScreenshotAsync(page, _logger);
+            }
+
+            TestTracker.CountPassingTests();
+            TestTracker.CountSkippedTests();
+
+            if (_browserManager != null
+                && page != null
+                && TestContext.CurrentContext.Result.Outcome.Status != NUnit.Framework.Interfaces.TestStatus.Skipped
+                && _browserManager.TracingStarted)
+            {
+                await _browserManager.StopTracingAsync(page, uploadTracer, _logger);
+            }
+
+            await DisposeAsync();
+        }
+
+        // No [OneTimeTearDown]: per-test cleanup runs in TearDownAsync,
+        // and the DI container is released by the ProcessExit handler in
+        // BuildServiceProvider — nothing fixture-scoped to dispose here.
+
+        private void ResolveBrowserObjects()
+        {
+            // Only called from SetUpAsync after _browserManager is resolved,
+            // so the null-forgiving operator is safe here.
+            var bm = _browserManager!;
+            SetBrowserObjects(
+                playwright: bm.playwright,
+                browser: bm.Browser,
+                context: bm.Context,
+                page: bm.page);
+        }
+
+        public void Dispose()
+        {
+            Trace.TraceInformation($"{nameof(TestFixture)}::Dispose()");
+            GC.SuppressFinalize(this);
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            // Per-test cleanup only — the DI container is process-scoped
+            // (see _lazyServiceProvider) and disposed at process exit.
+            //
+            // Disposing the scope disposes the BrowserManager, which owns
+            // closing page → context → browser → driver in that order. The
+            // fixture deliberately does NOT dispose Playwright objects
+            // itself: the previous version closed the context before the
+            // page and disposed the same IPlaywright twice (once via the
+            // manager, once via the inherited `playwright` property, which
+            // is the same reference).
+            if (_scope.HasValue)
+            {
+                try { await _scope.Value.DisposeAsync(); }
+                catch (Exception ex) { Console.WriteLine($"Error disposing test scope: {ex.Message}"); }
+                _scope = null;
+            }
+
+            _browserManager = null;
+            // Drop the inherited references too, so a disposed page/browser
+            // isn't reachable from the fixture instance after teardown.
+            SetBrowserObjects(null, null, null, null);
+        }
+
+        private static ServiceProvider BuildServiceProvider()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton<IConfiguration>(Configuration);
+            services.AddSingleton<IConfigurationRoot>(Configuration);
+            // Scoped, resolved from a per-test scope: one BrowserManager
+            // per test, released deterministically when that test's scope
+            // is disposed. Registering it transient and resolving from the
+            // root provider is what caused instances to accumulate for the
+            // whole run.
+            services.AddScoped<IBrowserManager, BrowserManager>();
+            var provider = services.BuildServiceProvider();
+
+            AppDomain.CurrentDomain.ProcessExit += (_, _) =>
+            {
+                try { provider.Dispose(); }
+                catch { /* best-effort during shutdown */ }
+            };
+
+            return provider;
+        }
+
+    }
+}

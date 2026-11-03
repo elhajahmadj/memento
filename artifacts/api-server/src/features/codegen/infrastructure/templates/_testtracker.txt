@@ -1,0 +1,48 @@
+using NUnit.Framework;
+using NUnit.Framework.Interfaces;
+
+namespace {{NAMESPACE}}.Shared.Helpers
+{
+    /// <summary>
+    /// Process-wide counters for test outcomes. The default fixture calls
+    /// both <see cref="CountPassingTests"/> and
+    /// <see cref="CountSkippedTests"/> from per-test <c>TearDown</c>, where
+    /// <c>TestContext.CurrentContext.Result.Outcome.Status</c> reliably
+    /// reflects the individual test's outcome. The resulting totals are
+    /// useful when generating a run summary in an end-of-run hook.
+    /// </summary>
+    public static class TestTracker
+    {
+        private static int _passing;
+        private static int _skipped;
+
+        /// <summary>
+        /// If the current NUnit test outcome is Passed, atomically
+        /// increments the run-wide passing counter. Returns the
+        /// post-increment total. Pass <paramref name="peek"/> = true to
+        /// read the counter without mutating it (useful from a summary
+        /// hook that runs after every test has reported its outcome).
+        /// </summary>
+        public static int CountPassingTests(bool peek = false)
+        {
+            if (peek) return _passing;
+            if (TestContext.CurrentContext.Result.Outcome.Status == TestStatus.Passed)
+                System.Threading.Interlocked.Increment(ref _passing);
+            return _passing;
+        }
+
+        /// <summary>
+        /// If the current NUnit test outcome is Skipped, atomically
+        /// increments the run-wide skipped counter and returns the
+        /// post-increment total. Called from per-test <c>TearDown</c> so
+        /// the outcome on <c>TestContext.CurrentContext</c> reflects the
+        /// individual test (not the fixture).
+        /// </summary>
+        public static int CountSkippedTests()
+        {
+            if (TestContext.CurrentContext.Result.Outcome.Status == TestStatus.Skipped)
+                System.Threading.Interlocked.Increment(ref _skipped);
+            return _skipped;
+        }
+    }
+}

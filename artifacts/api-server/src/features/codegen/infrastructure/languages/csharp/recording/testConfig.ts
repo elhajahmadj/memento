@@ -1,0 +1,170 @@
+/**
+ * Recorder-time emitter for `{Solution}.Shared/Configuration/TestConfig.cs`
+ * — the strongly-typed mirror of `appsettings.json` consumed by generated
+ * tests. Also exposes `migrateUrlReferencesToTestConfig` so older hook /
+ * test bodies that still reference `Configuration["Urls:Name"]!` get
+ * rewritten to the new typed `TestConfig.Name` form on their next edit.
+ */
+import fs from "node:fs/promises";
+import path from "node:path";
+import type { Project } from "@/features/projects/domain/types";
+import { safeJoin } from "@/features/projects/infrastructure/paths";
+
+/**
+ * Rewrite legacy `Configuration["Urls:Name"]!` accessors in a C# source
+ * file to the new typed `TestConfig.Name` form. Idempotent — strings
+ * that don't match are returned untouched. Used at the top of
+ * `addTestMethod`/`replaceHookBody` so older recordings pick up the
+ * task-#206 typed accessor on their next finalize.
+ */
+export function migrateUrlReferencesToTestConfig(text: string): string {
+  return text.replace(
+    /Configuration\["Urls:([A-Za-z_][A-Za-z0-9_]*)"\]!/g,
+    "TestConfig.$1",
+  );
+}
+
+/**
+ * Build the source for `{Solution}.Shared/Configuration/TestConfig.cs`.
+ * Deterministic from `(namespace, urlNames)` so the architecture-time
+ * scaffold (driven by `_testconfig.txt`) and the recorder-time
+ * regenerator produce byte-for-byte identical output for `urlNames=[]`.
+ *
+ * `urlNames` are filtered to legal C# identifiers and emitted in a
+ * stable case-insensitive sort order so re-finalizing the same project
+ * never causes a no-op file diff.
+ */
+export function buildTestConfigContent(
+  namespace: string,
+  urlNames: string[],
+): string {
+  const reserved = new Set([
+    "DefaultBrowser",
+    "Headless",
+    "UseChromium",
+    "StartTracer",
+    "PlaywrightTimeout",
+    "Environment",
+    "Urls",
+    "TestName",
+    "RunTracer",
+    "Configuration",
+  ]);
+  const safeNames = Array.from(
+    new Set(
+      urlNames.filter(
+        (n) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(n) && !reserved.has(n),
+      ),
+    ),
+  ).sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" }));
+  const urlBlock = safeNames.length === 0
+    ? ""
+    : safeNames
+        .map(
+          (n) =>
+            `        public static string ${n} => Configuration["Urls:${n}"]!;`,
+        )
+        .join("\n") + "\n";
+  return `using System.Collections.Generic;
+using Microsoft.Extensions.Configuration;
+
+namespace ${namespace}.Shared.Configuration
+{
+    /// <summary>
+    /// Strongly-typed mirror of <c>appsettings.json</c>. Tests and page
+    /// objects read configuration through this discoverable surface
+    /// instead of stringly-typed <c>Configuration["Key"]</c> lookups.
+    ///
+    /// The <c>// &lt;auto-generated-urls&gt;</c> block below is rewritten
+    /// from <c>appsettings.json</c>'s <c>Urls</c> map every time the
+    /// recorder upserts a named URL or finalizes a recording, so each
+    /// recorded suite can write <c>TestConfig.Login</c> instead of
+    /// <c>Configuration["Urls:Login"]!</c>.
+    /// </summary>
+    public static class TestConfig
+    {
+        private static readonly IConfigurationRoot Configuration =
+            AppConfigurationExtensions.GetConfiguration();
+
+        // ----- Mapped from appsettings.json -----
+
+        /// <summary>Browser channel used when <see cref="UseChromium"/> is false.</summary>
+        public static string DefaultBrowser { get; set; } = "msedge";
+
+        /// <summary>Run the browser without a visible window.</summary>
+        public static bool Headless { get; set; } = false;
+
+        /// <summary>When true, launch vanilla Chromium; otherwise use <see cref="DefaultBrowser"/>.</summary>
+        public static bool UseChromium { get; set; } = true;
+
+        /// <summary>Force-enable Playwright tracing for every test in the run.</summary>
+        public static bool StartTracer { get; set; } = false;
+
+        /// <summary>Default Playwright operation timeout in milliseconds.</summary>
+        public static int PlaywrightTimeout { get; set; } = 30000;
+
+        /// <summary>Active environment label (Local, Dev, QA, Prod, ...).</summary>
+        public static string Environment { get; set; } = "Local";
+
+        /// <summary>Named application URLs recorded into <c>appsettings.json</c>.</summary>
+        public static Dictionary<string, string> Urls { get; set; } =
+            new Dictionary<string, string>();
+
+        // ----- Run-wide switches set from CI / launcher / test code -----
+
+        /// <summary>When set, only the matching test method will run; others are skipped.</summary>
+        public static string TestName { get; set; } = string.Empty;
+
+        /// <summary>Force-enable Playwright tracing for every test in the run.</summary>
+        public static bool RunTracer { get; set; } = false;
+
+        // ----- Named URLs (regenerated from appsettings.json on every recording) -----
+        // <auto-generated-urls>
+${urlBlock}        // </auto-generated-urls>
+    }
+}
+`;
+}
+
+/**
+ * Rewrite `{Solution}.Shared/Configuration/TestConfig.cs` from the
+ * project's `appsettings.json` `Urls` map. No-op when the file's
+ * containing directory does not exist (custom architectures that don't
+ * follow the default `{Solution}.Shared/Configuration` layout) so this
+ * helper is safe to call from any C# code path. Returns the relative
+ * path that was written, or `null` when skipped.
+ */
+export async function regenerateTestConfig(
+  project: Project,
+): Promise<string | null> {
+  if ((project.language ?? "csharp") !== "csharp") return null;
+  const settingsPath = path.join(
+    project.rootPath,
+    project.testProjectName,
+    "appsettings.json",
+  );
+  let urlNames: string[] = [];
+  try {
+    const raw = await fs.readFile(settingsPath, "utf8");
+    const parsed: unknown = JSON.parse(raw);
+    if (parsed && typeof parsed === "object") {
+      const urls = (parsed as Record<string, unknown>).Urls;
+      if (urls && typeof urls === "object" && !Array.isArray(urls)) {
+        urlNames = Object.keys(urls as Record<string, unknown>);
+      }
+    }
+  } catch {
+    // appsettings.json missing or invalid — fall through with empty list.
+  }
+  const rel = `${project.solutionName}.Shared/Configuration/TestConfig.cs`;
+  const abs = safeJoin(project.rootPath, rel);
+  try {
+    const stat = await fs.stat(path.dirname(abs));
+    if (!stat.isDirectory()) return null;
+  } catch {
+    return null;
+  }
+  const content = buildTestConfigContent(project.namespace, urlNames);
+  await fs.writeFile(abs, content);
+  return rel;
+}

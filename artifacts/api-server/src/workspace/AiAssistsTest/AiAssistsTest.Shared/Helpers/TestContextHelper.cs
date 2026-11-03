@@ -1,0 +1,51 @@
+using NUnit.Framework;
+using NUnit.Framework.Interfaces;
+
+namespace AiAssistsTest.QA.Shared.Helpers
+{
+    /// <summary>
+    /// Thin wrapper around <see cref="TestContext"/> that exposes the most
+    /// commonly used fields for logging and conditional teardown logic.
+    /// </summary>
+    public class TestContextHelper
+    {
+        public TestContext Context { get; }
+
+        public string TestName => Context.Test.Name;
+        public string ClassName => Context.Test.ClassName ?? string.Empty;
+        public string MethodName => Context.Test.MethodName ?? string.Empty;
+        public string TestDirectory => Context.TestDirectory;
+        public string WorkDirectory => Context.WorkDirectory;
+        public string FullName => Context.Test.FullName;
+        public ResultState ResultState => Context.Result.Outcome;
+        public string Message => Context.Result.Message ?? string.Empty;
+        public string StackTrace => Context.Result.StackTrace ?? string.Empty;
+
+        public TestContextHelper(TestContext context)
+        {
+            Context = context;
+        }
+
+        public bool HasTestFailed() =>
+            ResultState.Status == TestStatus.Failed;
+
+        public bool HasTestPassed() =>
+            ResultState.Status == TestStatus.Passed;
+
+        public bool WasTestSkipped() =>
+            ResultState.Status == TestStatus.Skipped;
+
+        /// <summary>
+        /// Skip the running test when the user has filtered to a single test
+        /// name and the current test does not match. Used by <see cref="TestConfig.TestName"/>.
+        /// </summary>
+        public void RunTestByName(string targetTestName)
+        {
+            if (string.IsNullOrWhiteSpace(targetTestName)) return;
+            if (!string.Equals(targetTestName, MethodName, System.StringComparison.OrdinalIgnoreCase))
+            {
+                Assert.Ignore($"Skipped: filter '{targetTestName}' does not match {MethodName}.");
+            }
+        }
+    }
+}

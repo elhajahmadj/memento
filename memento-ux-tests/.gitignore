@@ -1,0 +1,11 @@
+bin/
+obj/
+TestResults/
+.vs/
+*.user
+.idea/
+appsettings.local.json
+playwright/.auth/
+.playwright/
+.snapshots/
+.baselines/

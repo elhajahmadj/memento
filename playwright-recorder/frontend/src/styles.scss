@@ -1,0 +1,86 @@
+@use '@angular/material' as mat;
+
+html {
+  color-scheme: dark;
+
+  @include mat.theme((
+    color: (
+      primary: mat.$azure-palette,
+      tertiary: mat.$blue-palette,
+    ),
+    typography: Roboto,
+    density: 0,
+  ));
+}
+
+:root {
+  /* Brand palette mirrored from artifacts/test-builder dark theme:
+     deep near-black LCP navy background with layered navy card surfaces,
+     vivid primary / sky-blue accents, and saturated red / orange / green
+     for semantic states. */
+  --bg-0: #0b111e;       /* hsl(215 48% 8%)  - LCP near-black navy */
+  --bg-1: #111a2f;       /* hsl(218 45% 12%) - card surface */
+  --bg-2: #18233e;       /* hsl(218 42% 16%) - hover / row surface */
+  --bg-3: #213150;       /* hsl(218 42% 22%) - elevated badge surface */
+  --border: #24324c;     /* hsl(215 35% 22%) */
+  --text: #f3f5f8;       /* hsl(215 25% 96%) */
+  --text-dim: #a0adbf;   /* hsl(215 20% 68%) */
+
+  --navy: #162441;       /* hsl(218 49% 17%) - deep navy surface */
+  --primary: #1f63cf;    /* hsl(217 77% 47%) - vivid mid-blue */
+  --accent: #3892f0;     /* hsl(211 85% 58%) - bright sky-blue */
+  --accent-2: #6cb1f5;   /* hsl(211 85% 70%) - light accent */
+
+  --danger: #e45449;     /* hsl(4 75% 56%)   - saturated red */
+  --warning: #f18a29;    /* hsl(26 90% 56%)  - saturated orange */
+  --success: #33c25a;    /* hsl(135 58% 48%) - saturated green */
+  --success-dark: #1e6e34;/* hsl(135 58% 28%) - dark success for badges */
+  --recording: #e45449;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  background: var(--bg-0);
+  color: var(--text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13px;
+  overflow: hidden;
+}
+
+.mono { font-family: 'JetBrains Mono', 'Consolas', monospace; }
+
+.mat-mdc-snack-bar-container {
+  --mdc-snackbar-container-color: var(--bg-2);
+  --mdc-snackbar-supporting-text-color: var(--text);
+}
+
+.mat-mdc-dialog-surface {
+  background-color: var(--bg-1) !important;
+  color: var(--text) !important;
+}
+
+.mat-mdc-form-field {
+  width: 100%;
+}
+
+.mdc-text-field--outlined {
+  --mdc-outlined-text-field-outline-color: var(--border);
+  --mdc-outlined-text-field-input-text-color: var(--text);
+  --mdc-outlined-text-field-label-text-color: var(--text-dim);
+  --mdc-outlined-text-field-hover-outline-color: var(--accent);
+  --mdc-outlined-text-field-focus-outline-color: var(--accent);
+  --mdc-outlined-text-field-caret-color: var(--accent);
+}
+
+.spacer { flex: 1 1 auto; }
+
+button.mat-mdc-button-base { letter-spacing: 0; text-transform: none; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb {
+  background: var(--bg-3);
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--border); }
+::-webkit-scrollbar-track { background: transparent; }

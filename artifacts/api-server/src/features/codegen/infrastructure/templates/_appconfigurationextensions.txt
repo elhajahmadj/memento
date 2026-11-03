@@ -1,0 +1,76 @@
+using System;
+using System.Collections.Generic;
+using Microsoft.Extensions.Configuration;
+
+namespace {{NAMESPACE}}.Shared.Configuration
+{
+    /// <summary>
+    /// Configuration helpers shared by tests and infrastructure. Builds the
+    /// <see cref="IConfigurationRoot"/> the same way no matter where the test
+    /// host is launched from, and resolves it onto the strongly-typed
+    /// <see cref="TestConfig"/> surface.
+    /// </summary>
+    public static class AppConfigurationExtensions
+    {
+        public static IConfigurationRoot GetConfiguration()
+        {
+            return new ConfigurationBuilder()
+                .SetBasePath(AppContext.BaseDirectory)
+                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
+                .AddEnvironmentVariables()
+                .Build();
+        }
+
+        public static string GetAppSetting(this IConfiguration configuration, string key)
+        {
+            return configuration[key] ?? string.Empty;
+        }
+
+        public static bool IsLocalEnv(this IConfiguration configuration)
+        {
+            var env = configuration["Environment"]
+                ?? Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
+                ?? "Local";
+
+            return string.Equals(env, "Local", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(env, "Development", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Hydrate <see cref="TestConfig"/> from the supplied configuration.
+        /// Missing or malformed entries leave the existing <see cref="TestConfig"/>
+        /// default in place so the call is safe to repeat.
+        /// </summary>
+        public static IConfiguration LoadTestConfig(this IConfiguration configuration)
+        {
+            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
+
+            TestConfig.DefaultBrowser =
+                configuration["DefaultBrowser"] ?? TestConfig.DefaultBrowser;
+
+            if (bool.TryParse(configuration["Headless"], out var headless))
+                TestConfig.Headless = headless;
+
+            if (bool.TryParse(configuration["UseChromium"], out var useChromium))
+                TestConfig.UseChromium = useChromium;
+
+            if (bool.TryParse(configuration["StartTracer"], out var startTracer))
+                TestConfig.StartTracer = startTracer;
+
+            if (int.TryParse(configuration["PlaywrightTimeout"], out var timeout))
+                TestConfig.PlaywrightTimeout = timeout;
+
+            TestConfig.Environment =
+                configuration["Environment"] ?? TestConfig.Environment;
+
+            var urls = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var entry in configuration.GetSection("Urls").GetChildren())
+            {
+                urls[entry.Key] = entry.Value ?? string.Empty;
+            }
+            TestConfig.Urls = urls;
+
+            return configuration;
+        }
+    }
+}

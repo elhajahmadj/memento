@@ -1,0 +1,19 @@
+{
+  "name": "workspace",
+  "version": "0.0.0",
+  "license": "SEE LICENSE IN LICENSE",
+  "scripts": {
+    "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
+    "build": "pnpm run typecheck && pnpm --filter @workspace/scripts run test:check-csharp-build-killers && pnpm --filter @workspace/scripts run check-duplicate-test-classes && pnpm --filter @workspace/scripts run check-unscoped-user-writes && pnpm --filter @workspace/scripts run check-db-drift && pnpm --filter @workspace/scripts run check-size-budgets && pnpm -r --if-present run build",
+    "typecheck:libs": "tsc --build",
+    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
+    "deploy": "FLY_API_TOKEN=\"$NEWFLYSECRET\" flyctl deploy -a memento-playwright --remote-only"
+  },
+  "private": true,
+  "packageManager": "pnpm@10.26.1",
+  "devDependencies": {
+    "marked": "^18.0.3",
+    "prettier": "^3.8.1",
+    "typescript": "~5.9.2"
+  }
+}

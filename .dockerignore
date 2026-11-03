@@ -1,0 +1,63 @@
+# Anything that bloats the image, leaks dev/CI state, or would be
+# overwritten by the build stage anyway.
+
+# Dependencies — re-installed inside the image.
+**/node_modules
+.pnpm-store
+
+# Build outputs — re-built inside the image.
+**/dist
+**/.turbo
+**/.next
+**/.cache
+**/.vite
+
+# Tests, coverage, and Playwright/CI artefacts.
+**/test-results
+**/playwright-report
+**/coverage
+**/.nyc_output
+
+# VCS and editor.
+.git
+.gitignore
+.gitattributes
+.github
+.vscode
+.idea
+**/.DS_Store
+
+# Replit / local agent state.
+.replit
+.replit.bak
+.replit-artifact
+.local
+.config
+.upm
+attached_assets
+
+# Logs / scratch.
+*.log
+build.out
+build.err
+
+# Secrets and env scaffolding (never bake these into the image).
+.env
+.env.*
+!.env.example
+
+# Bundled handoff zips and prebuilt HTML — operator artefacts, not runtime.
+*.zip
+*.tar.gz
+PUBLISHING.html
+docs/publishing/*.html
+
+# Memory-only / generated server state directories.
+workspace
+playwright-recorder
+memento-ux-tests/**/bin
+memento-ux-tests/**/obj
+
+# Dockerfile/compose files don't need to be inside the build context.
+Dockerfile
+.dockerignore

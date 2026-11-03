@@ -1,0 +1,7 @@
+{
+  "architectureId": "default",
+  "testProjectName": "AiAssistsTest.Tests",
+  "namespace": "AiAssistsTest.QA",
+  "solutionName": "AiAssistsTest",
+  "language": "csharp"
+}

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <title>Recorder E2E Fixture</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      // Replace WebSocket BEFORE the React bundle imports / runs the
+      // RecordingCanvas effect. The fixture exposes a single instance
+      // through `window.__fakeWS__` so the Playwright spec can drive
+      // server messages and inspect what the page sent.
+      (function () {
+        const sent = [];
+        let active = null;
+        function FakeWebSocket(url) {
+          this.url = url;
+          this.readyState = 0;
+          this.onopen = null;
+          this.onclose = null;
+          this.onerror = null;
+          this.onmessage = null;
+          active = this;
+          window.__fakeWS__ = {
+            instance: this,
+            sent,
+            open: () => {
+              this.readyState = 1;
+              if (this.onopen) this.onopen({});
+            },
+            emit: (msg) => {
+              if (this.onmessage)
+                this.onmessage({ data: JSON.stringify(msg) });
+            },
+            messages: () => sent.slice(),
+          };
+        }
+        FakeWebSocket.prototype.send = function (data) {
+          let parsed = {};
+          try {
+            parsed = JSON.parse(data);
+          } catch (_e) {
+            /* ignore */
+          }
+          sent.push({ raw: data, parsed });
+        };
+        FakeWebSocket.prototype.close = function () {
+          this.readyState = 3;
+        };
+        FakeWebSocket.OPEN = 1;
+        FakeWebSocket.CLOSED = 3;
+        window.WebSocket = FakeWebSocket;
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/e2e-fixture.tsx"></script>
+  </body>
+</html>

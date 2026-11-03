@@ -1,0 +1,661 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *, .grey *));
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-card-border: hsl(var(--card-border));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-popover-border: hsl(var(--popover-border));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-primary-border: hsl(var(--primary-border));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-secondary-border: hsl(var(--secondary-border));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-muted-border: hsl(var(--muted-border));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-accent-border: hsl(var(--accent-border));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-destructive-border: hsl(var(--destructive-border));
+
+  --color-warning: hsl(var(--warning));
+  --color-warning-foreground: hsl(var(--warning-foreground));
+
+  --color-success: hsl(var(--success));
+  --color-success-foreground: hsl(var(--success-foreground));
+
+  --color-chart-1: hsl(var(--chart-1));
+  --color-chart-2: hsl(var(--chart-2));
+  --color-chart-3: hsl(var(--chart-3));
+  --color-chart-4: hsl(var(--chart-4));
+  --color-chart-5: hsl(var(--chart-5));
+
+  --color-sidebar: hsl(var(--sidebar));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+  --color-sidebar-primary: hsl(var(--sidebar-primary));
+  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
+  --color-sidebar-primary-border: hsl(var(--sidebar-primary-border));
+  --color-sidebar-accent: hsl(var(--sidebar-accent));
+  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+  --color-sidebar-accent-border: hsl(var(--sidebar-accent-border));
+  --color-sidebar-ring: hsl(var(--sidebar-ring));
+
+  --font-sans: var(--app-font-sans);
+  --font-display: var(--app-font-display);
+  --font-serif: var(--app-font-serif);
+  --font-mono: var(--app-font-mono);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* Type scale — tracking is size-specific, never one value for every
+     size. Large text reads too loose as it grows, so it takes negative
+     tracking; small text takes a slight positive bump for legibility.
+     Attaching these to the scale means every `text-*` utility carries
+     the right tracking automatically.
+
+     Leading moves inversely to size: tight on large display text,
+     comfortable on body copy. Tailwind's stock leading for the display
+     steps is a flat `1`, which crowds ascenders against descenders. */
+  --text-xs--letter-spacing: 0.01em;
+  --text-sm--letter-spacing: 0.005em;
+  --text-base--letter-spacing: 0em;
+  --text-lg--letter-spacing: -0.005em;
+  --text-xl--letter-spacing: -0.01em;
+  --text-2xl--letter-spacing: -0.014em;
+  --text-3xl--letter-spacing: -0.018em;
+  --text-4xl--letter-spacing: -0.022em;
+  --text-5xl--letter-spacing: -0.026em;
+  --text-6xl--letter-spacing: -0.03em;
+  --text-7xl--letter-spacing: -0.032em;
+
+  --text-4xl--line-height: 1.12;
+  --text-5xl--line-height: 1.08;
+  --text-6xl--line-height: 1.05;
+  --text-7xl--line-height: 1.03;
+}
+
+/*
+ * Brand palette — Typography & Color System reference.
+ *
+ *   65% Neutral Tones (backgrounds & structure)
+ *     LCP Black   #0E1626  215 48%  10%   deep near-black navy
+ *     Dark Gray   #3C485A  217 20%  30%   slate
+ *     Gray        #8597B0  215 22%  60%   light blue-slate
+ *
+ *   25% Brand Colors (vivid blues)
+ *     Navy        #16243F  218 49%  17%   deep navy surface
+ *     Primary Blue #1A5DC8  217 77%  44%   vivid saturated mid-blue
+ *     Accent Blue #2D8CEE  211 85%  55%   bright sky-blue
+ *
+ *   10% Semantic Colors
+ *     Red         #DC3D32  4  72%  53%   destructive / alert
+ *     Orange      #ED842B  26 84%  55%   warning
+ *     Green       #2DAB4F  135 58%  42%   success
+ */
+
+:root {
+  --button-outline: rgba(14, 22, 38, 0.10);
+  --badge-outline: rgba(14, 22, 38, 0.06);
+
+  --opaque-button-border-intensity: -8;
+
+  --elevate-1: rgba(14, 22, 38, 0.04);
+  --elevate-2: rgba(14, 22, 38, 0.08);
+
+  /* Surfaces — gentle warm-cream canvas with a clear background → sidebar →
+     card → popover elevation ladder. The base canvas now has a faint warm
+     tint so light mode no longer reads as one flat near-white surface. */
+  --background: 35 35% 98%;
+  --foreground: 215 48% 10%;
+  --border: 215 22% 88%;
+  --input: 215 22% 88%;
+  --ring: 217 77% 44%;
+  --radius: 0.625rem;
+
+  --card: 0 0% 100%;
+  --card-foreground: 215 48% 10%;
+  --card-border: 215 25% 90%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 215 48% 10%;
+  --popover-border: 215 25% 90%;
+
+  /* 25% brand — vivid blues */
+  --primary: 217 77% 44%;
+  --primary-foreground: 0 0% 100%;
+  --primary-border: 217 77% 36%;
+
+  --secondary: 215 32% 95%;
+  --secondary-foreground: 218 49% 17%;
+  --secondary-border: 215 25% 88%;
+
+  --muted: 215 28% 96%;
+  --muted-foreground: 215 18% 38%;
+  --muted-border: 215 22% 90%;
+
+  --accent: 211 85% 55%;
+  --accent-foreground: 0 0% 100%;
+  --accent-border: 211 85% 47%;
+
+  /* 10% semantic — saturated red / orange / green */
+  --destructive: 4 72% 50%;
+  --destructive-foreground: 0 0% 100%;
+  --destructive-border: 4 72% 42%;
+
+  --warning: 26 88% 52%;
+  --warning-foreground: 0 0% 100%;
+
+  --success: 135 60% 38%;
+  --success-foreground: 0 0% 100%;
+
+  --chart-1: 217 77% 44%;
+  --chart-2: 211 85% 55%;
+  --chart-3: 215 22% 60%;
+  --chart-4: 26 88% 52%;
+  --chart-5: 135 60% 38%;
+
+  /* Sidebar surface sits one step above the canvas so layering reads
+     even when only the top nav uses it. */
+  --sidebar: 215 28% 96%;
+  --sidebar-foreground: 215 40% 20%;
+  --sidebar-border: 215 22% 88%;
+  --sidebar-primary: 217 77% 44%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-primary-border: 217 77% 36%;
+  --sidebar-accent: 215 32% 93%;
+  --sidebar-accent-foreground: 218 49% 17%;
+  --sidebar-accent-border: 215 25% 86%;
+  --sidebar-ring: 217 77% 44%;
+
+  /* Light-mode supporting tokens for gradients, soft tints and ambient
+     accents. These are referenced by the .bg-brand-gradient,
+     .text-brand-gradient, .shadow-card and .ambient-bg-soft utilities. */
+  --brand-gradient: linear-gradient(135deg, hsl(217 77% 44%) 0%, hsl(211 85% 55%) 100%);
+  --brand-gradient-soft: linear-gradient(135deg, hsla(217, 77%, 44%, 0.10) 0%, hsla(211, 85%, 55%, 0.08) 100%);
+  --shadow-card: 0 1px 2px rgba(14, 22, 38, 0.04), 0 6px 18px -8px rgba(14, 22, 38, 0.10);
+  --shadow-card-hover: 0 2px 4px rgba(14, 22, 38, 0.05), 0 12px 28px -10px rgba(14, 22, 38, 0.14);
+  --shadow-nav: 0 1px 0 rgba(14, 22, 38, 0.05), 0 4px 14px -8px rgba(14, 22, 38, 0.10);
+  --ambient-blob-primary: hsla(217, 77%, 44%, 0.10);
+  --ambient-blob-accent: hsla(211, 85%, 60%, 0.08);
+
+  --app-font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --app-font-display: 'Sora', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --app-font-serif: Georgia, serif;
+  --app-font-mono: 'JetBrains Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
+
+  /* Motion — the CSS half of the spring tokens in
+     `src/shared/motion/springs.ts`. Anything a user can grab should use
+     a real spring from that module (springs are interruptible and
+     velocity-aware); these are for the CSS-driven state changes that
+     nobody drags, where a curve is honest enough.
+
+     `--response-*` mirrors Apple's "response" rather than a duration:
+     how quickly the value reaches its target.
+
+     `--ease-enter` / `--ease-exit` are inverse control points, so a
+     reversible transition returns along the path it arrived on instead
+     of taking a different route back. */
+  --response-instant: 100ms;
+  --response-fast: 200ms;
+  --response-base: 300ms;
+  --ease-enter: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-exit: cubic-bezier(1, 0, 0.68, 0.28);
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Materials — translucent chrome that floats over content instead of
+     consuming an opaque strip of the layout. Bigger surfaces read as
+     thicker: stronger blur, deeper shadow. */
+  --material-blur: 20px;
+  --material-saturate: 180%;
+  --material-chrome: hsla(215, 28%, 96%, 0.72);
+  --material-edge: hsla(0, 0%, 100%, 0.5);
+}
+
+.dark {
+  --button-outline: rgba(255, 255, 255, 0.10);
+  --badge-outline: rgba(255, 255, 255, 0.06);
+
+  --opaque-button-border-intensity: 9;
+
+  --elevate-1: rgba(255, 255, 255, 0.04);
+  --elevate-2: rgba(255, 255, 255, 0.09);
+
+  /* LCP Black background with layered Navy surfaces */
+  --background: 215 48% 8%;
+  --foreground: 215 25% 96%;
+  --border: 215 35% 22%;
+  --input: 215 35% 22%;
+  --ring: 211 85% 60%;
+
+  --card: 218 45% 12%;
+  --card-foreground: 215 25% 96%;
+  --card-border: 215 35% 22%;
+
+  --popover: 218 45% 14%;
+  --popover-foreground: 215 25% 96%;
+  --popover-border: 215 35% 22%;
+
+  /* Vivid blues pop against deep navy */
+  --primary: 211 85% 58%;
+  --primary-foreground: 215 48% 8%;
+  --primary-border: 211 85% 50%;
+
+  --secondary: 218 42% 22%;
+  --secondary-foreground: 215 25% 96%;
+  --secondary-border: 215 35% 28%;
+
+  --muted: 215 35% 16%;
+  --muted-foreground: 215 20% 68%;
+  --muted-border: 215 35% 22%;
+
+  --accent: 217 77% 50%;
+  --accent-foreground: 0 0% 100%;
+  --accent-border: 217 77% 42%;
+
+  --destructive: 4 75% 56%;
+  --destructive-foreground: 0 0% 100%;
+  --destructive-border: 4 75% 48%;
+
+  --warning: 26 90% 56%;
+  --warning-foreground: 215 48% 8%;
+
+  --success: 135 58% 48%;
+  --success-foreground: 215 48% 8%;
+
+  --chart-1: 211 85% 58%;
+  --chart-2: 217 77% 52%;
+  --chart-3: 215 22% 60%;
+  --chart-4: 26 90% 56%;
+  --chart-5: 135 58% 48%;
+
+  --sidebar: 215 55% 6%;
+  --sidebar-foreground: 215 22% 92%;
+  --sidebar-border: 215 35% 20%;
+  --sidebar-primary: 211 85% 58%;
+  --sidebar-primary-foreground: 215 48% 8%;
+  --sidebar-primary-border: 211 85% 50%;
+  --sidebar-accent: 218 42% 22%;
+  --sidebar-accent-foreground: 215 25% 96%;
+  --sidebar-accent-border: 215 35% 28%;
+  --sidebar-ring: 211 85% 60%;
+
+  /* Dark-mode shadows and ambient tokens are toned down — these tokens
+     are intentionally muted so the existing dark surfaces keep their
+     current feel even though the light-mode work added them. */
+  --brand-gradient: linear-gradient(135deg, hsl(211 85% 58%) 0%, hsl(217 77% 52%) 100%);
+  --brand-gradient-soft: linear-gradient(135deg, hsla(211, 85%, 58%, 0.12) 0%, hsla(217, 77%, 52%, 0.10) 100%);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.30), 0 6px 16px -8px rgba(0, 0, 0, 0.45);
+  --shadow-card-hover: 0 2px 4px rgba(0, 0, 0, 0.35), 0 10px 24px -10px rgba(0, 0, 0, 0.55);
+  --shadow-nav: 0 1px 0 rgba(0, 0, 0, 0.40);
+  --ambient-blob-primary: hsla(211, 85%, 58%, 0.06);
+  --ambient-blob-accent: hsla(217, 77%, 50%, 0.05);
+
+  /* Heavier, darker material over the deep navy canvas — a light
+     translucent surface over a dark one would wash the text out. */
+  --material-chrome: hsla(215, 55%, 6%, 0.72);
+  --material-edge: hsla(0, 0%, 100%, 0.08);
+}
+
+.grey {
+  --button-outline: rgba(255, 255, 255, 0.10);
+  --badge-outline: rgba(255, 255, 255, 0.06);
+
+  --opaque-button-border-intensity: 6;
+
+  --elevate-1: rgba(255, 255, 255, 0.05);
+  --elevate-2: rgba(255, 255, 255, 0.10);
+
+  /* Neutral mid-grey surfaces — desaturated, between light and dark */
+  --background: 220 6% 38%;
+  --foreground: 0 0% 96%;
+  --border: 220 6% 28%;
+  --input: 220 6% 28%;
+  --ring: 211 70% 62%;
+
+  --card: 220 6% 44%;
+  --card-foreground: 0 0% 96%;
+  --card-border: 220 6% 30%;
+
+  --popover: 220 6% 46%;
+  --popover-foreground: 0 0% 96%;
+  --popover-border: 220 6% 30%;
+
+  --primary: 211 70% 60%;
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 220 6% 50%;
+  --secondary-foreground: 0 0% 98%;
+
+  --muted: 220 6% 34%;
+  --muted-foreground: 220 6% 82%;
+
+  --accent: 217 65% 58%;
+  --accent-foreground: 0 0% 100%;
+
+  --destructive: 4 70% 56%;
+  --destructive-foreground: 0 0% 100%;
+
+  --warning: 26 80% 58%;
+  --warning-foreground: 0 0% 100%;
+
+  --success: 135 50% 48%;
+  --success-foreground: 0 0% 100%;
+
+  --chart-1: 211 70% 62%;
+  --chart-2: 217 65% 56%;
+  --chart-3: 220 8% 72%;
+  --chart-4: 26 80% 58%;
+  --chart-5: 135 50% 48%;
+
+  --sidebar: 220 6% 32%;
+  --sidebar-foreground: 0 0% 94%;
+  --sidebar-border: 220 6% 26%;
+  --sidebar-primary: 211 70% 62%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 220 6% 50%;
+  --sidebar-accent-foreground: 0 0% 98%;
+  --sidebar-ring: 211 70% 62%;
+
+  --material-chrome: hsla(220, 6%, 32%, 0.72);
+  --material-edge: hsla(0, 0%, 100%, 0.10);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+    font-feature-settings: "cv11", "ss01", "ss03";
+    /* Soft ambient backdrop in light mode — primary blue glow at the
+       top-left, accent sky-blue glow at the bottom-right. The
+       background-image is overridden to `none` in dark mode below so
+       the dark canvas stays flat as designed. */
+    background-image:
+      radial-gradient(900px circle at 0% -10%, var(--ambient-blob-primary), transparent 55%),
+      radial-gradient(700px circle at 100% 110%, var(--ambient-blob-accent), transparent 55%);
+    background-attachment: fixed;
+  }
+
+  .dark body {
+    background-image: none;
+  }
+
+  /* Tracking and leading are set per level rather than once for every
+     heading: a single value is necessarily wrong at one end of the
+     scale. A `text-*` utility on a heading still wins over these, and
+     carries its own size-matched tracking from the type scale above. */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--app-font-display);
+  }
+
+  h1 { letter-spacing: -0.022em; line-height: 1.12; }
+  h2 { letter-spacing: -0.018em; line-height: 1.18; }
+  h3 { letter-spacing: -0.014em; line-height: 1.25; }
+  h4 { letter-spacing: -0.01em;  line-height: 1.3; }
+  h5 { letter-spacing: -0.005em; line-height: 1.4; }
+  h6 { letter-spacing: 0;        line-height: 1.45; }
+
+  code, kbd, samp, pre {
+    font-family: var(--app-font-mono);
+    font-feature-settings: "ss02", "calt", "liga";
+  }
+}
+
+/* Hover/active elevation utilities — used widely by buttons, cards,
+   sidebar/nav items, and badges via the `hover-elevate` /
+   `active-elevate-2` class names. The classes were referenced
+   throughout the app but the CSS that powers them was missing, so
+   interactive surfaces never actually changed on hover. */
+@layer utilities {
+  .no-default-hover-elevate {}
+  .no-default-active-elevate {}
+
+  .hover-elevate:not(.no-default-hover-elevate),
+  .active-elevate:not(.no-default-active-elevate),
+  .hover-elevate-2:not(.no-default-hover-elevate),
+  .active-elevate-2:not(.no-default-active-elevate) {
+    position: relative;
+    z-index: 0;
+  }
+
+  .hover-elevate:not(.no-default-hover-elevate)::after,
+  .active-elevate:not(.no-default-active-elevate)::after,
+  .hover-elevate-2:not(.no-default-hover-elevate)::after,
+  .active-elevate-2:not(.no-default-active-elevate)::after {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    z-index: 1;
+    transition: background-color 150ms ease;
+  }
+
+  .hover-elevate:hover:not(.no-default-hover-elevate)::after,
+  .active-elevate:active:not(.no-default-active-elevate)::after {
+    background-color: var(--elevate-1);
+  }
+
+  .hover-elevate-2:hover:not(.no-default-hover-elevate)::after,
+  .active-elevate-2:active:not(.no-default-active-elevate)::after {
+    background-color: var(--elevate-2);
+  }
+
+  /* Press feedback lands on pointer-down with no ramp — the moment lag
+     appears here, the sense of directness falls off a cliff. Hover keeps
+     its gentle fade, and the tint still eases back out on release, so
+     only the "on" edge is instant. */
+  .active-elevate:active:not(.no-default-active-elevate)::after,
+  .active-elevate-2:active:not(.no-default-active-elevate)::after {
+    transition-duration: 0s;
+  }
+
+  /* Cover the parent's 1px border on bordered elements so the elevate
+     overlay reaches edge-to-edge. */
+  .border.hover-elevate:not(.no-default-hover-elevate)::after,
+  .border.active-elevate:not(.no-default-active-elevate)::after,
+  .border.hover-elevate-2:not(.no-default-hover-elevate)::after,
+  .border.active-elevate-2:not(.no-default-active-elevate)::after {
+    inset: -1px;
+  }
+
+  /* Brand gradient utilities — primary blue → accent sky blue. */
+  .bg-brand-gradient {
+    background-image: var(--brand-gradient);
+  }
+  .bg-brand-gradient-soft {
+    background-image: var(--brand-gradient-soft);
+  }
+  .text-brand-gradient {
+    background-image: var(--brand-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  /* Solid brand blue — matches the "m" in the memento logo. Used to
+     highlight Memento Admin (god-mode) UI affordances like the
+     profile icon in the user menu. */
+  .text-brand {
+    color: hsl(217 77% 44%);
+  }
+  :root.dark .text-brand,
+  .dark .text-brand,
+  :root.grey .text-brand,
+  .grey .text-brand {
+    color: hsl(211 85% 58%);
+  }
+
+  .shadow-card {
+    box-shadow: var(--shadow-card);
+  }
+  .shadow-card-hover {
+    box-shadow: var(--shadow-card-hover);
+  }
+  .shadow-nav {
+    box-shadow: var(--shadow-nav);
+  }
+
+  /* Decorative ambient blobs for splash, login, empty states and any
+     hero area. Adds a soft brand-tinted radial glow behind content via
+     a ::before pseudo-element so it never participates in layout. */
+  .ambient-bg-soft {
+    position: relative;
+    isolation: isolate;
+  }
+  .ambient-bg-soft::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image:
+      radial-gradient(420px circle at 12% 18%, var(--ambient-blob-primary), transparent 55%),
+      radial-gradient(360px circle at 88% 82%, var(--ambient-blob-accent), transparent 55%);
+  }
+
+  /* Translucent chrome — a floating functional layer with content
+     scrolling underneath, rather than an opaque bar that owns a strip of
+     the viewport. The bright top edge is light catching the material. */
+  .material-chrome {
+    background-color: var(--material-chrome);
+    backdrop-filter: blur(var(--material-blur)) saturate(var(--material-saturate));
+    -webkit-backdrop-filter: blur(var(--material-blur)) saturate(var(--material-saturate));
+    border-top: 1px solid var(--material-edge);
+  }
+
+  /* Scroll edge effect — where floating chrome overlaps content, fade
+     the content out beneath it instead of drawing a hard 1px divider.
+     The divider is a line the eye has to ignore; the fade reads as
+     depth. */
+  /* Deliberately does not set `position` — the surfaces that use this are
+     already `sticky`, and a `position: relative` here has the same
+     specificity as Tailwind's `sticky`, so source order would decide
+     whether the chrome still sticks. Apply it to a positioned element. */
+  .scroll-edge::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    top: 100%;
+    height: 1.25rem;
+    pointer-events: none;
+    background-image: linear-gradient(
+      to bottom,
+      var(--material-chrome),
+      transparent
+    );
+  }
+
+  /* Vibrancy — text over a translucent, shifting backdrop needs more
+     contrast and a touch more weight than text on a solid surface;
+     flat mid-grey disappears into whatever scrolls beneath it. */
+  .text-vibrant {
+    color: hsl(var(--foreground));
+    font-weight: 500;
+    letter-spacing: 0.005em;
+  }
+}
+
+/*
+ * Accessibility — three independent user signals, honored at the
+ * foundation so every component inherits the behavior instead of each
+ * one remembering to opt in.
+ */
+
+/* Reduced motion does not mean no feedback: it means a gentler,
+   non-vestibular equivalent. Travel, overshoot and parallax go; opacity
+   and colour changes stay, because they carry meaning. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.15s !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Overlays cross-fade in place rather than sliding or zooming. Only
+     the keyframes are dropped — the static transform is left alone,
+     because centred overlays are positioned with a -50% translate and
+     resetting it would knock them off centre. */
+  [data-state="open"],
+  [data-state="closed"] {
+    animation-name: none !important;
+  }
+
+  .scroll-edge::after {
+    display: none;
+  }
+}
+
+/* Frostier, not blurrier: raise the surface opacity and drop the blur
+   so translucent chrome stops competing with the content behind it. */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --material-chrome: hsl(var(--sidebar));
+    --material-blur: 0px;
+  }
+
+  .material-chrome {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background-color: hsl(var(--sidebar));
+  }
+
+  .ambient-bg-soft::before {
+    display: none;
+  }
+
+  body {
+    background-image: none;
+  }
+}
+
+/* Near-solid backgrounds with a defined, contrasting border. */
+@media (prefers-contrast: more) {
+  :root {
+    --material-chrome: hsl(var(--sidebar));
+    --material-blur: 0px;
+    --border: 215 30% 40%;
+    --input: 215 30% 40%;
+  }
+
+  .dark {
+    --border: 215 30% 62%;
+    --input: 215 30% 62%;
+  }
+
+  .material-chrome {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background-color: hsl(var(--sidebar));
+    border-bottom: 1px solid hsl(var(--border));
+  }
+}
