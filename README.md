@@ -16,6 +16,17 @@ run, and export a complete test project you run on your own machine.
 
 ---
 
+## About this project
+
+I've built memento as a solo project over the past 10 months — designing,
+recording, scaffolding, and refining the whole record-to-page-object loop
+on my own. It has reached the point where it's ready to be shared, so I'm
+publishing it for the community to use and help shape. Contributions,
+issues, and ideas are very welcome — see [CONTRIBUTING.md](CONTRIBUTING.md)
+to get started.
+
+---
+
 ## What it does
 
 - **Record → page objects.** Drive a headless Chromium session in the
